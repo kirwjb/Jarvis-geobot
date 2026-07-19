@@ -14,3 +14,6 @@ redis==5.0.7
 #Environment Configuration
 python-dotenv==1.0.1
 
+#Frontend mini-app
+node.js == v24.18.0
+npm == v11.16.0
