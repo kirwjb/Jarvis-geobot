@@ -1,0 +1,11 @@
+{
+  "dependencies": {
+    "@tma.js/sdk": "^3.3.0",
+    "@tma.js/sdk-react": "^3.0.23",
+    "axios": "^1.18.1",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.42.2",
+    "lucide-react": "^1.24.0",
+    "react-router-dom": "^7.18.1"
+  }
+}

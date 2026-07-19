@@ -1,0 +1,55 @@
+.banner {
+    position: relative;
+
+    width: 100%;
+    max-width: 420px;
+
+    overflow: hidden;
+
+    border-radius: 20px;
+
+    height: 96px;
+    background: #5aa5f5 100%;
+}
+
+.background {
+    position: absolute;
+
+    right: 16px;
+    top: 50%;
+
+    width: 72px;
+    height: 72px;
+
+    transform: translateY(-50%);
+
+    opacity: 0.25;
+}
+
+.overlay {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+
+    height: 100%;
+}
+
+.overlay h3 {
+    margin: 0;
+
+    color: white;
+
+    font-size: 24px;
+    font-weight: 700;
+}
+
+.overlay p {
+    margin-top: 6px;
+
+    max-width: 220px;
+
+    color: rgba(255,255,255,.75);
+
+    font-size: 13px;
+    line-height: 1.4;
+}
