@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 100 100">
+
+  <defs>
+    <linearGradient id="g"
+                    x1="0"
+                    y1="0"
+                    x2="100"
+                    y2="100">
+
+      <stop offset="0%"
+            stop-color="#93c5fd"/>
+
+      <stop offset="100%"
+            stop-color="#2563eb"/>
+
+    </linearGradient>
+  </defs>
+
+  <circle
+    cx="50"
+    cy="50"
+    r="46"
+    fill="#0c0c0e"
+    stroke="url(#g)"
+    stroke-width="3"/>
+
+  <path
+    d="M50 12
+       C30 18 22 31 22 48
+       C22 69 39 84 50 90
+       C61 84 78 69 78 48
+       C78 31 70 18 50 12Z"
+    fill="url(#g)"
+    opacity="0.2"/>
+
+  <path
+    d="M42 39
+       C42 34 46 31 51 31
+       C56 31 60 34 61 39
+       L67 36
+       L64 43
+       C67 47 67 52 64 56
+       C61 61 56 64 50 65
+       L50 73
+       L45 70
+       L45 78
+       L40 75
+       L40 62
+       C34 58 32 52 34 47
+       C35 43 38 40 42 39Z"
+    fill="url(#g)"/>
+
+</svg>
