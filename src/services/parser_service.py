@@ -25,10 +25,18 @@ async def get_city_coords(city: str) -> tuple[float | None, float | None]:
         error(f"Ошибка получения координат города через aiohttp: {e}")
     return None, None
 
-async def get_attractions_osm(city: str, limit: int = 100) -> list:
+async def get_attractions_osm(
+    city: str,
+    category: str | None = None,
+    limit: int = 100
+) -> list:
+
     lat, lon = await get_city_coords(city)
     if not lat or not lon:
         return []
+    
+    log(f"CITY={city}")
+    log(f"CATEGORY={category}")
     
     bbox = f"{lat-0.1}, {lon-0.15}, {lat+0.1}, {lon+0.15}"
     
@@ -95,8 +103,6 @@ async def get_attractions_osm(city: str, limit: int = 100) -> list:
                                 continue
                             seen.add(key)
                             
-                            # ГЕНЕРАЦИЯ СТАБИЛЬНОГО ID НА ОСНОВЕ ПРОВЕРЕННЫХ ДАННЫХ
-                            # Если у OSM есть родной ID элемента, берем его, иначе хэшируем уникальный ключ
                             raw_id = elem.get("id")
                             if raw_id and str(raw_id).isdigit() and len(str(raw_id)) <= 15:
                                 uid = str(raw_id)
