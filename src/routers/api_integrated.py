@@ -1,35 +1,42 @@
-from fastapi import FastAPI, HTTPException, Depends, Request, Query
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
-from pydantic import BaseModel
-from typing import List, Optional
-import os
 import json
-import hashlib
+import math
 from datetime import datetime, timedelta
-import asyncio
+from typing import List, Optional
 
-from src.config import REGIONS, LIMITS, DEFAULT_LIMIT, DEFAULT_LANGUAGE
-from src.database.db import AsyncSessionLocal, get_db_session
-from src.database.models import User, OsmCache, Favorite, History
-from src.database.session_manager import user_sessions, redis_client
-from src.services.parser_service import get_attractions_osm, get_city_coords
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from sqlalchemy import delete, select
+
+from src.config import REGIONS, DEFAULT_LIMIT
+from src.database.db import AsyncSessionLocal
+from src.database.models import User, OsmCache, Favorite
+from src.database.session_manager import redis_client
+from src.services.parser_service import (
+    get_attractions_osm,
+    get_city_coords,
+)
 from src.services.weather_service import get_weather
 from src.services.optimizer_service import optimizeRoutePoints
 from src.services.map_service import build_google_maps_link
 from src.utils.languages import get_text
-from src.utils.utils import log, error, logger
+from src.utils.utils import log, error
 
 
+# ============================================================
+# RESPONSE MODELS
+# ============================================================
 
 class RegionResponse(BaseModel):
     id: str
     name: str
     cities: List[str]
 
+
 class CityResponse(BaseModel):
     name: str
     region: str
+
 
 class WeatherResponse(BaseModel):
     city: str
@@ -40,11 +47,13 @@ class WeatherResponse(BaseModel):
     pressure: Optional[int] = None
     cached: bool = False
 
+
 class POIQuery(BaseModel):
     region: str
     city: Optional[str] = None
     tags: List[str] = []
     limit: int = 15
+
 
 class POI(BaseModel):
     id: str
@@ -53,16 +62,17 @@ class POI(BaseModel):
     region: str
     address: str
     category: str
-    rating: float
     lat: float
     lon: float
     hours: Optional[str] = None
     phone: Optional[str] = None
     image_url: Optional[str] = None
 
+
 class RouteRequest(BaseModel):
     poi_ids: List[str]
     optimize: bool = True
+
 
 class RouteResponse(BaseModel):
     poi_ids: List[str]
@@ -70,18 +80,20 @@ class RouteResponse(BaseModel):
     total_distance_km: Optional[float] = None
     optimized: bool
 
+
 class FavoriteToggle(BaseModel):
     user_id: int
     poi_id: str
 
-class FavoriteList(BaseModel):
-    user_id: int
 
+# ============================================================
+# APPLICATION
+# ============================================================
 
 app = FastAPI(
     title="JARVIS GEO-APP API",
     description="Backend for Belarus Travel Telegram Mini App",
-    version="2.0.0"
+    version="2.0.0",
 )
 
 
@@ -94,204 +106,421 @@ app.add_middleware(
 )
 
 
-async def get_db():
-  
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
+# ============================================================
+# HELPERS
+# ============================================================
 
-async def check_weather_cache(city: str):
-  
+def normalize_region_id(region_name: str) -> str:
+    return (
+        region_name
+        .lower()
+        .replace(" область", "")
+        .replace(" ", "_")
+    )
+
+
+def normalize_category(value: str) -> str:
+
+    value = value.lower()
+
+    if "castle" in value or "замок" in value:
+        return "castle"
+
+    if (
+        "church" in value
+        or "cathedral" in value
+        or "церк" in value
+        or "собор" in value
+        or "храм" in value
+    ):
+        return "church"
+
+    if "museum" in value or "музей" in value:
+        return "museum"
+
+    if "monument" in value or "памятник" in value:
+        return "monument"
+
+    if "park" in value or "парк" in value:
+        return "park"
+
+    return "misc"
+
+
+# ============================================================
+# WEATHER CACHE
+# ============================================================
+
+async def check_weather_cache(
+    city: str,
+) -> Optional[dict]:
+
     cache_key = f"weather:{city}"
+
     cached = await redis_client.get(cache_key)
-    if cached:
+
+    if not cached:
+        return None
+
+    try:
         data = json.loads(cached)
-        if datetime.fromisoformat(data["timestamp"]) > datetime.utcnow() - timedelta(minutes=30):
+        timestamp = datetime.fromisoformat(
+            data["timestamp"]
+        )
+
+        if timestamp > datetime.utcnow() - timedelta(
+            minutes=30
+        ):
             return data
+
+    except (
+        json.JSONDecodeError,
+        KeyError,
+        ValueError,
+        TypeError,
+    ) as exc:
+
+        error(
+            f"Ошибка чтения weather cache "
+            f"для {city}: {exc}"
+        )
+
     return None
 
-async def set_weather_cache(city: str, data: dict):
-   
+
+async def set_weather_cache(
+    city: str,
+    data: dict,
+) -> None:
+
     cache_key = f"weather:{city}"
-    data["timestamp"] = datetime.utcnow().isoformat()
-    await redis_client.setex(cache_key, 1800, json.dumps(data))
 
-async def get_cached_osm(city: str, category: str = None):
-  
-    async with AsyncSessionLocal() as session:
-        from sqlalchemy import select
-        query = select(OsmCache).where(OsmCache.city == city)
-        result = await session.execute(query)
-        cached = result.scalars().all()
-        if cached:
-            return [{
-                "id": c.id,
-                "name": c.name,
-                "address": c.address,
-                "lat": c.lat,
-                "lon": c.lon,
-                "sights_data": c.sights_data
-            } for c in cached]
-    return None
+    cache_data = {
+        **data,
+        "timestamp": datetime.utcnow().isoformat(),
+    }
 
-async def save_to_osm_cache(city: str, attractions: list):
+    await redis_client.setex(
+        cache_key,
+        1800,
+        json.dumps(
+            cache_data,
+            ensure_ascii=False,
+        ),
+    )
+
+
+# ============================================================
+# OSM CACHE
+# ============================================================
+
+async def get_cached_osm(
+    city: str,
+) -> Optional[list[dict]]:
+
     async with AsyncSessionLocal() as session:
+
+        result = await session.execute(
+            select(OsmCache)
+            .where(OsmCache.city == city)
+        )
+
+        items = result.scalars().all()
+
+        if not items:
+            return None
+
+        return [
+            {
+                "id": item.id,
+                "name": item.name,
+                "address": item.address,
+                "lat": item.lat,
+                "lon": item.lon,
+                "sights_data": item.sights_data,
+            }
+            for item in items
+        ]
+
+
+async def save_to_osm_cache(
+    city: str,
+    attractions: list[dict],
+) -> None:
+
+    async with AsyncSessionLocal() as session:
+
         for attr in attractions:
+
             cache_entry = OsmCache(
                 city=city,
                 name=attr.get("name"),
                 address=attr.get("address"),
                 lat=attr.get("lat"),
                 lon=attr.get("lon"),
-                sights_data=json.dumps(attr, ensure_ascii=False)
+                sights_data=json.dumps(
+                    attr,
+                    ensure_ascii=False,
+                ),
             )
+
             session.add(cache_entry)
+
         await session.commit()
 
 
+# ============================================================
+# ROOT
+# ============================================================
+
 @app.get("/")
 async def root():
-    return {"status": "JARVIS GEO-APP API", "version": "2.0.0"}
+
+    return {
+        "status": "JARVIS GEO-APP API",
+        "version": "2.0.0",
+    }
 
 
-@app.get("/api/regions", response_model=List[RegionResponse])
+# ============================================================
+# REGIONS
+# ============================================================
+
+@app.get(
+    "/api/regions",
+    response_model=List[RegionResponse],
+)
 async def get_regions():
 
     result = []
+
     for region_name, cities in REGIONS.items():
-        region_id = region_name.lower().replace(" область", "").replace(" ", "_")
-        result.append(RegionResponse(
-            id=region_id,
-            name=region_name,
-            cities=cities
-        ))
+
+        result.append(
+            RegionResponse(
+                id=normalize_region_id(region_name),
+                name=region_name,
+                cities=cities,
+            )
+        )
+
     return result
 
 
-@app.get("/api/cities/{region_id}", response_model=List[CityResponse])
-async def get_cities(region_id: str):
+@app.get(
+    "/api/cities/{region_id}",
+    response_model=List[CityResponse],
+)
+async def get_cities(
+    region_id: str,
+):
 
     for region_name, cities in REGIONS.items():
-        rid = region_name.lower().replace(" область", "").replace(" ", "_")
-        if rid == region_id:
-            return [CityResponse(name=c, region=region_name) for c in cities]
-    raise HTTPException(status_code=404, detail=get_text("choose_city_empty"))
 
-@app.get("/api/weather/{city}", response_model=WeatherResponse)
-async def get_weather_endpoint(city: str):
+        if normalize_region_id(region_name) == region_id:
+
+            return [
+                CityResponse(
+                    name=city,
+                    region=region_name,
+                )
+                for city in cities
+            ]
+
+    raise HTTPException(
+        status_code=404,
+        detail=get_text("choose_city_empty"),
+    )
+
+
+# ============================================================
+# WEATHER
+# ============================================================
+
+@app.get(
+    "/api/weather/{city}",
+    response_model=WeatherResponse,
+)
+async def get_weather_endpoint(
+    city: str,
+):
 
     cached = await check_weather_cache(city)
+
     if cached:
+
         return WeatherResponse(
             city=city,
-            description=cached.get("description", ""),
-            cached=True
+            description=cached.get(
+                "description",
+                "",
+            ),
+            cached=True,
         )
- 
+
     try:
+
         weather_text = await get_weather(city)
-    
-        result = WeatherResponse(
+
+        await set_weather_cache(
+            city,
+            {
+                "description": weather_text,
+            },
+        )
+
+        return WeatherResponse(
             city=city,
             description=weather_text,
-            cached=False
+            cached=False,
         )
-        
-       
-        await set_weather_cache(city, {"description": weather_text})
-        
-        return result
-    except Exception as e:
-        error(f"Weather API error for {city}: {e}")
-        raise HTTPException(status_code=500, detail=get_text("internal_error"))
 
+    except Exception as exc:
+
+        error(
+            f"Weather API error for {city}: {exc}"
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail=get_text("internal_error"),
+        )
+
+
+# ============================================================
+# POIS
+# ============================================================
 
 @app.post("/api/pois/query")
-async def query_pois(query: POIQuery):
-  
-    if not query.city:
-        raise HTTPException(status_code=400, detail="City required")
-    
+async def query_pois(
+    query: POIQuery,
+):
 
-    limit = LIMITS.get(query.city, DEFAULT_LIMIT)
-    if query.limit:
-        limit = min(query.limit, limit)
-    
-   
-    cached = await get_cached_osm(query.city)
-    
-    if cached and len(cached) > 0:
-        log(f"OSM cache hit for {query.city}: {len(cached)} items")
- 
+    if not query.city:
+
+        raise HTTPException(
+            status_code=400,
+            detail="City required",
+        )
+
+    limit = min(
+        max(query.limit, 1),
+        DEFAULT_LIMIT,
+    )
+
+    cached = await get_cached_osm(
+        query.city
+    )
+
+    if cached:
+
+        log(
+            f"OSM cache hit for {query.city}: "
+            f"{len(cached)} items"
+        )
+
         attractions = []
+
         for item in cached:
-            if item["sights_data"]:
-                attr = json.loads(item["sights_data"])
-         
-                if query.tags:
-                    attr_type = attr.get("type", "").lower()
-                    tag_match = any(t.lower() in attr_type for t in query.tags)
-                    if not tag_match:
-                        continue
-                attractions.append(attr)
+
+            raw_data = item.get(
+                "sights_data"
+            )
+
+            if not raw_data:
+                continue
+
+            try:
+                attr = json.loads(raw_data)
+
+            except json.JSONDecodeError:
+
+                error(
+                    "Некорректный JSON в OSM cache: "
+                    f"{item.get('id')}"
+                )
+
+                continue
+
+            if query.tags:
+
+                attr_type = attr.get(
+                    "type",
+                    "",
+                ).lower()
+
+                if not any(
+                    tag.lower() in attr_type
+                    for tag in query.tags
+                ):
+                    continue
+
+            attractions.append(attr)
+
     else:
 
-        log(f"Fetching OSM data for {query.city}")
+        log(
+            f"Fetching OSM data for {query.city}"
+        )
+
         attractions = await get_attractions_osm(
             city=query.city,
-            category=None,  
-            limit=limit
+            limit=limit,
         )
-        
-        
+
         if attractions:
-            await save_to_osm_cache(query.city, attractions)
-    
-    
+
+            await save_to_osm_cache(
+                query.city,
+                attractions,
+            )
+
     pois = []
+
     for attr in attractions[:limit]:
- 
-        cat = attr.get("type", "misc").lower()
-        if "castle" in cat or "замок" in cat:
-            category = "castle"
-        elif "church" in cat or "cathedral" in cat or "храм" in cat:
-            category = "church"
-        elif "museum" in cat or "музей" in cat:
-            category = "museum"
-        elif "monument" in cat or "памятник" in cat:
-            category = "monument"
-        elif "park" in cat or "парк" in cat or "nature" in cat:
-            category = "park"
-        elif "architecture" in cat or "building" in cat:
-            category = "architecture"
-        else:
-            category = "misc"
-        
-        pois.append(POI(
-            id=attr.get("id", ""),
-            name=attr.get("name", get_text("no_name")),
-            city=query.city,
-            region=query.region,
-            address=attr.get("address", get_text("no_address")),
-            category=category,
-            rating=attr.get("rating", 3.5),
-            lat=attr.get("lat", 0.0),
-            lon=attr.get("lon", 0.0),
-            hours=attr.get("hours"),
-            phone=attr.get("phone"),
-            image_url=attr.get("image_url")
-        ))
-    
+
+        if not attr.get("id"):
+            continue
+
+        if not attr.get("name"):
+            continue
+
+        if attr.get("lat") is None:
+            continue
+
+        if attr.get("lon") is None:
+            continue
+
+        pois.append(
+            POI(
+                id=attr["id"],
+                name=attr["name"],
+                city=query.city,
+                region=query.region,
+                address=attr.get(
+                    "address",
+                    "",
+                ),
+                category=normalize_category(
+                    attr.get("type", "")
+                ),
+                lat=attr["lat"],
+                lon=attr["lon"],
+                hours=attr.get("hours"),
+                phone=attr.get("phone"),
+                image_url=None,
+            )
+        )
+
     return {
         "count": len(pois),
         "region": query.region,
         "city": query.city,
         "tags": query.tags,
-        "pois": [p.model_dump() for p in pois]
+        "pois": [
+            poi.model_dump()
+            for poi in pois
+        ],
     }
 
 
@@ -300,171 +529,413 @@ async def get_all_pois(
     region: Optional[str] = None,
     city: Optional[str] = None,
     category: Optional[str] = None,
-    limit: int = 50
+    limit: int = 50,
 ):
-  
-    async with AsyncSessionLocal() as session:
-        from sqlalchemy import select
-        query = select(OsmCache)
-        if city:
-            query = query.where(OsmCache.city == city)
-        result = await session.execute(query)
-        items = result.scalars().all()
-        
-        pois = []
-        for item in items[:limit]:
-            if item.sights_data:
-                data = json.loads(item.sights_data)
-                pois.append(data)
-        
-        return {"pois": pois, "count": len(pois)}
 
-@app.post("/api/route/build", response_model=RouteResponse)
-async def build_route(req: RouteRequest):
+    limit = max(limit, 1)
+
+    async with AsyncSessionLocal() as session:
+
+        query = select(OsmCache)
+
+        if city:
+            query = query.where(
+                OsmCache.city == city
+            )
+
+        result = await session.execute(query)
+
+        items = result.scalars().all()
+
+    pois = []
+
+    for item in items[:limit]:
+
+        if not item.sights_data:
+            continue
+
+        try:
+            data = json.loads(
+                item.sights_data
+            )
+
+        except json.JSONDecodeError:
+
+            error(
+                f"Некорректный JSON OSM cache: "
+                f"{item.id}"
+            )
+
+            continue
+
+        if category:
+
+            current_category = normalize_category(
+                data.get("type", "")
+            )
+
+            if current_category != category:
+                continue
+
+        pois.append(data)
+
+    return {
+        "pois": pois,
+        "count": len(pois),
+    }
+
+
+# ============================================================
+# ROUTES
+# ============================================================
+
+@app.post(
+    "/api/route/build",
+    response_model=RouteResponse,
+)
+async def build_route(
+    req: RouteRequest,
+):
 
     if len(req.poi_ids) < 2:
-        raise HTTPException(status_code=400, detail=get_text("min_points_error", count=len(req.poi_ids)))
-    
+
+        raise HTTPException(
+            status_code=400,
+            detail=get_text(
+                "min_points_error",
+                count=len(req.poi_ids),
+            ),
+        )
 
     route_points = []
+
     async with AsyncSessionLocal() as session:
-        from sqlalchemy import select
+
         for poi_id in req.poi_ids:
-            query = select(OsmCache).where(OsmCache.id == int(poi_id) if poi_id.isdigit() else 0)
-            result = await session.execute(query)
+
+            if not poi_id:
+                continue
+
+            result = await session.execute(
+                select(OsmCache)
+                .where(
+                    OsmCache.sights_data.contains(
+                        f'"id": "{poi_id}"'
+                    )
+                )
+            )
+
             item = result.scalar_one_or_none()
-            if item and item.lat and item.lon:
-                route_points.append({
+
+            if not item:
+                continue
+
+            if item.lat is None or item.lon is None:
+                continue
+
+            route_points.append(
+                {
                     "lat": item.lat,
                     "lon": item.lon,
-                    "name": item.name or ""
-                })
-    
+                    "name": item.name or "",
+                }
+            )
+
     if len(route_points) < 2:
-        raise HTTPException(status_code=400, detail="Need at least 2 points with coordinates")
-    
+
+        raise HTTPException(
+            status_code=400,
+            detail="Need at least 2 points with coordinates",
+        )
+
     if req.optimize:
-        optimized = optimizeRoutePoints(route_points)
+        optimized = optimizeRoutePoints(
+            route_points
+        )
     else:
         optimized = route_points
-  
-    google_url = build_google_maps_link(optimized)
-    
-   
+
+    google_url = build_google_maps_link(
+        optimized
+    )
+
     total_km = 0.0
-    for i in range(len(optimized) - 1):
-        lat1, lon1 = optimized[i]["lat"], optimized[i]["lon"]
-        lat2, lon2 = optimized[i + 1]["lat"], optimized[i + 1]["lon"]
-        
-        import math
-        dx = math.radians(lon2 - lon1) * math.cos(math.radians((lat1 + lat2) / 2)) * 111.32
-        dy = math.radians(lat2 - lat1) * 111.32
-        total_km += math.sqrt(dx**2 + dy**2)
-    
+
+    for index in range(
+        len(optimized) - 1
+    ):
+
+        lat1 = optimized[index]["lat"]
+        lon1 = optimized[index]["lon"]
+
+        lat2 = optimized[index + 1]["lat"]
+        lon2 = optimized[index + 1]["lon"]
+
+        dx = (
+            math.radians(lon2 - lon1)
+            * math.cos(
+                math.radians(
+                    (lat1 + lat2) / 2
+                )
+            )
+            * 111.32
+        )
+
+        dy = (
+            math.radians(lat2 - lat1)
+            * 111.32
+        )
+
+        total_km += math.sqrt(
+            dx ** 2 + dy ** 2
+        )
+
     return RouteResponse(
         poi_ids=req.poi_ids,
         google_maps_url=google_url,
-        total_distance_km=round(total_km, 1),
-        optimized=req.optimize
+        total_distance_km=round(
+            total_km,
+            1,
+        ),
+        optimized=req.optimize,
     )
 
 
+# ============================================================
+# FAVORITES
+# ============================================================
+
 @app.post("/api/favorites/toggle")
-async def toggle_favorite(data: FavoriteToggle):
+async def toggle_favorite(
+    data: FavoriteToggle,
+):
 
     async with AsyncSessionLocal() as session:
-        from sqlalchemy import select, delete
-        
-        query = select(Favorite).where(
-            Favorite.user_id == data.user_id,
-            Favorite.place_id == data.poi_id
+
+        result = await session.execute(
+            select(Favorite).where(
+                Favorite.user_id == data.user_id,
+                Favorite.place_id == data.poi_id,
+            )
         )
-        result = await session.execute(query)
-        existing = result.scalar_one_or_none()
-        
-        if existing:
-            await session.execute(
-                delete(Favorite).where(Favorite.id == existing.id)
-            )
-            await session.commit()
-            return {"poi_id": data.poi_id, "user_id": data.user_id, "favorited": False}
-        else:
-            new_fav = Favorite(
-                user_id=data.user_id,
-                place_id=data.poi_id,
-                place_name="",  
-                address="",
-                lat=0.0,
-                lon=0.0
-            )
-            session.add(new_fav)
-            await session.commit()
-            return {"poi_id": data.poi_id, "user_id": data.user_id, "favorited": True}
 
-@app.get("/api/favorites/{user_id}")
-async def get_favorites(user_id: int):
-    async with AsyncSessionLocal() as session:
-        from sqlalchemy import select
-        query = select(Favorite).where(Favorite.user_id == user_id)
-        result = await session.execute(query)
-        favs = result.scalars().all()
+        existing = result.scalar_one_or_none()
+
+        if existing:
+
+            await session.execute(
+                delete(Favorite).where(
+                    Favorite.id == existing.id
+                )
+            )
+
+            await session.commit()
+
+            return {
+                "poi_id": data.poi_id,
+                "user_id": data.user_id,
+                "favorited": False,
+            }
+
+        result = await session.execute(
+            select(OsmCache)
+            .where(
+                OsmCache.sights_data.contains(
+                    f'"id": "{data.poi_id}"'
+                )
+            )
+        )
+
+        place = result.scalar_one_or_none()
+
+        if not place:
+
+            raise HTTPException(
+                status_code=404,
+                detail="Place not found",
+            )
+
+        favorite = Favorite(
+            user_id=data.user_id,
+            place_id=data.poi_id,
+            place_name=place.name or "",
+            address=place.address or "",
+            lat=place.lat or 0.0,
+            lon=place.lon or 0.0,
+        )
+
+        session.add(favorite)
+
+        await session.commit()
+
         return {
-            "user_id": user_id,
-            "favorites": [
-                {
-                    "id": f.id,
-                    "place_id": f.place_id,
-                    "place_name": f.place_name,
-                    "address": f.address,
-                    "lat": f.lat,
-                    "lon": f.lon
-                } for f in favs
-            ]
+            "poi_id": data.poi_id,
+            "user_id": data.user_id,
+            "favorited": True,
         }
 
 
+@app.get("/api/favorites/{user_id}")
+async def get_favorites(
+    user_id: int,
+):
+
+    async with AsyncSessionLocal() as session:
+
+        result = await session.execute(
+            select(Favorite)
+            .where(
+                Favorite.user_id == user_id
+            )
+        )
+
+        favorites = result.scalars().all()
+
+    return {
+        "user_id": user_id,
+        "favorites": [
+            {
+                "id": favorite.id,
+                "place_id": favorite.place_id,
+                "place_name": favorite.place_name,
+                "address": favorite.address,
+                "lat": favorite.lat,
+                "lon": favorite.lon,
+            }
+            for favorite in favorites
+        ],
+    }
+
+
+# ============================================================
+# HEALTH
+# ============================================================
+
 @app.get("/health")
 async def health():
-    return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
 
+    return {
+        "status": "ok",
+        "timestamp": datetime.utcnow().isoformat(),
+    }
+
+
+# ============================================================
+# TELEGRAM AUTH
+# ============================================================
 
 @app.post("/api/auth/telegram")
-async def auth_telegram(request: Request):
+async def auth_telegram(
+    request: Request,
+):
 
     data = await request.json()
-    init_data = data.get("initData", "")
-    
-    
-    if "user=" in init_data:
-        import urllib.parse
-        parsed = urllib.parse.parse_qs(init_data)
-        user_json = parsed.get("user", ["{}"])[0]
-        user_data = json.loads(urllib.parse.unquote(user_json))
-        
-        user_id = user_data.get("id")
-        username = user_data.get("username", "")
-        
-        # Создаём/обновляем пользователя
-        async with AsyncSessionLocal() as session:
-            from sqlalchemy import select
-            query = select(User).where(User.user_id == user_id)
-            result = await session.execute(query)
-            user = result.scalar_one_or_none()
-            
-            if not user:
-                user = User(user_id=user_id, username=username)
-                session.add(user)
-                await session.commit()
-            
-            return {
-                "user_id": user_id,
-                "username": username,
-                "is_new": user is None,
-                "tokens": user.tokens if user else 5
-            }
-    
-    raise HTTPException(status_code=401, detail="Invalid initData")
 
+    init_data = data.get(
+        "initData",
+        "",
+    )
+
+    if "user=" not in init_data:
+
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid initData",
+        )
+
+    try:
+
+        import urllib.parse
+
+        parsed = urllib.parse.parse_qs(
+            init_data
+        )
+
+        user_json = parsed.get(
+            "user",
+            ["{}"],
+        )[0]
+
+        user_data = json.loads(
+            user_json
+        )
+
+    except (
+        json.JSONDecodeError,
+        TypeError,
+        ValueError,
+    ) as exc:
+
+        error(
+            f"Ошибка разбора Telegram initData: "
+            f"{exc}"
+        )
+
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid initData",
+        )
+
+    user_id = user_data.get("id")
+
+    if not user_id:
+
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid Telegram user",
+        )
+
+    username = user_data.get(
+        "username",
+        "",
+    )
+
+    async with AsyncSessionLocal() as session:
+
+        result = await session.execute(
+            select(User)
+            .where(
+                User.user_id == user_id
+            )
+        )
+
+        user = result.scalar_one_or_none()
+
+        is_new = user is None
+
+        if is_new:
+
+            user = User(
+                user_id=user_id,
+                username=username,
+            )
+
+            session.add(user)
+
+        else:
+
+            user.username = username
+
+        await session.commit()
+
+        return {
+            "user_id": user.user_id,
+            "username": user.username,
+            "is_new": is_new,
+            "tokens": user.tokens,
+        }
+
+
+# ============================================================
+# LOCAL DEVELOPMENT
+# ============================================================
 
 if __name__ == "__main__":
+
     import uvicorn
+
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=8000,
+    )

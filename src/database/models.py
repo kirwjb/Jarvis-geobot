@@ -26,8 +26,6 @@ class OsmCache(Base):
     address: Mapped[Optional[str]] = mapped_column(String)
     lat: Mapped[Optional[float]] = mapped_column(Float)
     lon: Mapped[Optional[float]] = mapped_column(Float)
-    image_url: Mapped[Optional[str]] = mapped_column(Text)
-    image_path: Mapped[Optional[str]] = mapped_column(Text)
 
 class Favorite(Base):
     __tablename__ = "favorites"
@@ -77,3 +75,39 @@ class GroupVote(Base):
     user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.user_id", ondelete="CASCADE"))
     place_id: Mapped[str] = mapped_column(String)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=datetime.datetime.utcnow)
+
+class PlacePhoto(Base):
+    __tablename__ = "place_photos"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        autoincrement=True,
+    )
+
+    place_id: Mapped[str] = mapped_column(
+        String(255),
+        index=True,
+    )
+
+    source: Mapped[str] = mapped_column(
+        String(50),
+    )
+
+    original_url: Mapped[str] = mapped_column(
+        Text,
+    )
+
+    local_url: Mapped[str] = mapped_column(
+        Text,
+    )
+
+    author: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    license: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )

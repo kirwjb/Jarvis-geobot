@@ -32,12 +32,11 @@ REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 
 
-overpass_raw = os.getenv("OVERPASS_URLS", "")
-if overpass_raw:
-    OVERPASS_URLS = [url.strip() for url in overpass_raw.split(",") if url.strip()]
+nominatim_raw = os.getenv("NOMINATIM_URLS", "")
+if nominatim_raw:
+    NOMINATIM_URLS = [url.strip() for url in nominatim_raw.split(",") if url.strip()]
 else:
-    OVERPASS_URLS = ["https://nominatim.openstreetmap.org/search"]
-
+    NOMINATIM_URLS = ["https://nominatim.openstreetmap.org/search"]
 WIKIMEDIA_API_URL = os.getenv("WIKIMEDIA_API_URL", "").strip()
 
 DEFAULT_LANGUAGE = os.getenv("DEFAULT_LANGUAGE", "ru").strip().lower()
