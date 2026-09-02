@@ -26,6 +26,8 @@ class OsmCache(Base):
     address: Mapped[Optional[str]] = mapped_column(String)
     lat: Mapped[Optional[float]] = mapped_column(Float)
     lon: Mapped[Optional[float]] = mapped_column(Float)
+    image_url: Mapped[Optional[str]] = mapped_column(Text)
+    image_path: Mapped[Optional[str]] = mapped_column(Text)
 
 class Favorite(Base):
     __tablename__ = "favorites"
