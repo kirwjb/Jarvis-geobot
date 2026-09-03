@@ -1,31 +1,31 @@
 import json
-import math
 from datetime import datetime, timedelta
 from typing import List, Optional
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import delete, select
 
-from src.config import REGIONS, DEFAULT_LIMIT
+from src.config import REGIONS
 from src.database.db import AsyncSessionLocal
-from src.database.models import User, OsmCache, Favorite
-from src.database.session_manager import redis_client
-from src.services.parser_service import (
-    get_attractions_osm,
-    get_city_coords,
-)
+from src.database.models import User, Favorite, Place, PlacePhoto
+from src.services.parser_service import get_attractions_osm
 from src.services.weather_service import get_weather
 from src.services.optimizer_service import optimizeRoutePoints
 from src.services.map_service import build_google_maps_link
+from src.services.routes_service import get_distance_osrm
+from src.database.session_manager import redis_client
 from src.utils.languages import get_text
-from src.utils.utils import log, error
+from src.utils.utils import log, error, info, logger
 
+from fastapi.staticfiles import StaticFiles
+from src.services.wiki_service import get_wikimedia_photo
 
 # ============================================================
 # RESPONSE MODELS
 # ============================================================
+
 
 class RegionResponse(BaseModel):
     id: str
@@ -51,8 +51,9 @@ class WeatherResponse(BaseModel):
 class POIQuery(BaseModel):
     region: str
     city: Optional[str] = None
-    tags: List[str] = []
-    limit: int = 15
+    tags: List[str] = Field(default_factory=list)
+    limit: int = 30
+    offset: int = 0
 
 
 class POI(BaseModel):
@@ -67,6 +68,10 @@ class POI(BaseModel):
     hours: Optional[str] = None
     phone: Optional[str] = None
     image_url: Optional[str] = None
+
+
+class POIDetail(POI):
+    photo: Optional[dict] = None
 
 
 class RouteRequest(BaseModel):
@@ -90,17 +95,20 @@ class FavoriteToggle(BaseModel):
 # APPLICATION
 # ============================================================
 
+
 app = FastAPI(
     title="JARVIS GEO-APP API",
     description="Backend for Belarus Travel Telegram Mini App",
-    version="2.0.0",
+    version="2.1.0",
 )
+
+app.mount("/media", StaticFiles(directory="media"), name="media")
 
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -109,6 +117,11 @@ app.add_middleware(
 # ============================================================
 # HELPERS
 # ============================================================
+
+
+MAX_POI_LIMIT = 30
+DEFAULT_POI_LIMIT = 30
+
 
 def normalize_region_id(region_name: str) -> str:
     return (
@@ -120,8 +133,7 @@ def normalize_region_id(region_name: str) -> str:
 
 
 def normalize_category(value: str) -> str:
-
-    value = value.lower()
+    value = (value or "").lower()
 
     if "castle" in value or "замок" in value:
         return "castle"
@@ -144,12 +156,252 @@ def normalize_category(value: str) -> str:
     if "park" in value or "парк" in value:
         return "park"
 
+    if "gallery" in value or "галере" in value:
+        return "gallery"
+
+    if "viewpoint" in value or "смотров" in value:
+        return "viewpoint"
+
+    if "memorial" in value or "мемориал" in value:
+        return "memorial"
+
+    if "ruins" in value or "руины" in value:
+        return "ruins"
+
+    if "manor" in value or "усадь" in value:
+        return "manor"
+
+    if "theme_park" in value or "аттракцион" in value:
+        return "theme_park"
+
     return "misc"
+
+
+def normalize_limit(value: int) -> int:
+    return min(max(value, 1), MAX_POI_LIMIT)
+
+
+def normalize_offset(value: int) -> int:
+    return max(value, 0)
+
+
+def place_to_dict(
+    place: Place,
+    image_url: Optional[str] = None,
+) -> dict:
+    return {
+        "id": place.place_id,
+        "name": place.name,
+        "city": place.city,
+        "region": place.region,
+        "address": place.address or "",
+        "category": place.category,
+        "lat": float(place.lat),
+        "lon": float(place.lon),
+        "hours": place.hours,
+        "phone": place.phone,
+        "image_url": image_url,
+    }
+
+
+def photo_to_dict(photo: PlacePhoto | None) -> Optional[dict]:
+    if photo is None:
+        return None
+
+    return {
+        "source": photo.source,
+        "original_url": photo.original_url,
+        "local_url": photo.local_url,
+        "author": photo.author,
+        "license": photo.license,
+    }
+
+
+async def get_photos_map(
+    session,
+    place_ids: list[str],
+) -> dict[str, PlacePhoto]:
+    if not place_ids:
+        return {}
+
+    result = await session.execute(
+        select(PlacePhoto)
+        .where(PlacePhoto.place_id.in_(place_ids))
+        .order_by(PlacePhoto.id.asc())
+    )
+
+    photos = result.scalars().all()
+
+    result_map: dict[str, PlacePhoto] = {}
+
+    for photo in photos:
+        if photo.place_id not in result_map:
+            result_map[photo.place_id] = photo
+
+    return result_map
+
+async def ensure_place_photo(
+    session,
+    place: Place,
+) -> PlacePhoto | None:
+    result = await session.execute(
+        select(PlacePhoto)
+        .where(PlacePhoto.place_id == place.place_id)
+        .order_by(PlacePhoto.id.asc())
+        .limit(1)
+    )
+    photo = result.scalar_one_or_none()
+
+    if photo:
+        return photo
+   
+    log(f"CALLING WIKIMEDIA: {place.name} | {place.city} | {place.place_id}")
+
+    photo_data = await get_wikimedia_photo(
+    name=place.name,
+    city=place.city,
+    place_id=place.place_id,
+    lat=place.lat,
+    lon=place.lon,
+)
+
+    if not photo_data:
+        return None
+
+    photo = PlacePhoto(
+        place_id=place.place_id,
+        source=photo_data["source"],
+        original_url=photo_data["original_url"],
+        local_url=photo_data["local_url"],
+        author=photo_data.get("author"),
+        license=photo_data.get("license"),
+    )
+
+    session.add(photo)
+    await session.flush()
+
+    return photo
+
+async def get_places_from_db(
+    session,
+    *,
+    region: Optional[str] = None,
+    city: Optional[str] = None,
+    category: Optional[str] = None,
+    offset: int = 0,
+    limit: int = MAX_POI_LIMIT,
+) -> list[Place]:
+
+    query = select(Place)
+
+    if region:
+        query = query.where(Place.region == region)
+
+    if city:
+        query = query.where(Place.city == city)
+
+    if category:
+        query = query.where(Place.category == category)
+
+    query = (
+        query
+        .order_by(Place.name.asc())
+        .offset(offset)
+        .limit(limit)
+    )
+
+    result = await session.execute(query)
+
+    return list(result.scalars().all())
+
+
+async def get_place_by_id(
+    session,
+    place_id: str,
+) -> Optional[Place]:
+
+    result = await session.execute(
+        select(Place)
+        .where(Place.place_id == place_id)
+        .limit(1)
+    )
+
+    return result.scalar_one_or_none()
+
+
+async def upsert_osm_places(
+    session,
+    attractions: list[dict],
+    *,
+    city: str,
+    region: str,
+) -> list[Place]:
+
+    result: list[Place] = []
+
+    for attr in attractions:
+        place_id = attr.get("id")
+        name = attr.get("name")
+
+        lat = attr.get("lat")
+        lon = attr.get("lon")
+
+        if not place_id or not name:
+            continue
+
+        if lat is None or lon is None:
+            continue
+
+        category = normalize_category(
+            attr.get("type", "")
+        )
+
+        existing_result = await session.execute(
+            select(Place)
+            .where(Place.place_id == place_id)
+            .limit(1)
+        )
+
+        place = existing_result.scalar_one_or_none()
+
+        if place is None:
+            place = Place(
+                place_id=place_id,
+                name=name,
+                city=city,
+                region=region,
+                address=attr.get("address") or "",
+                category=category,
+                lat=float(lat),
+                lon=float(lon),
+                hours=attr.get("hours"),
+                phone=attr.get("phone"),
+            )
+
+            session.add(place)
+
+        else:
+            place.name = name
+            place.city = city
+            place.region = region
+            place.address = attr.get("address") or ""
+            place.category = category
+            place.lat = float(lat)
+            place.lon = float(lon)
+            place.hours = attr.get("hours")
+            place.phone = attr.get("phone")
+
+        result.append(place)
+
+    await session.flush()
+
+    return result
 
 
 # ============================================================
 # WEATHER CACHE
 # ============================================================
+
 
 async def check_weather_cache(
     city: str,
@@ -164,6 +416,7 @@ async def check_weather_cache(
 
     try:
         data = json.loads(cached)
+
         timestamp = datetime.fromisoformat(
             data["timestamp"]
         )
@@ -211,74 +464,15 @@ async def set_weather_cache(
 
 
 # ============================================================
-# OSM CACHE
-# ============================================================
-
-async def get_cached_osm(
-    city: str,
-) -> Optional[list[dict]]:
-
-    async with AsyncSessionLocal() as session:
-
-        result = await session.execute(
-            select(OsmCache)
-            .where(OsmCache.city == city)
-        )
-
-        items = result.scalars().all()
-
-        if not items:
-            return None
-
-        return [
-            {
-                "id": item.id,
-                "name": item.name,
-                "address": item.address,
-                "lat": item.lat,
-                "lon": item.lon,
-                "sights_data": item.sights_data,
-            }
-            for item in items
-        ]
-
-
-async def save_to_osm_cache(
-    city: str,
-    attractions: list[dict],
-) -> None:
-
-    async with AsyncSessionLocal() as session:
-
-        for attr in attractions:
-
-            cache_entry = OsmCache(
-                city=city,
-                name=attr.get("name"),
-                address=attr.get("address"),
-                lat=attr.get("lat"),
-                lon=attr.get("lon"),
-                sights_data=json.dumps(
-                    attr,
-                    ensure_ascii=False,
-                ),
-            )
-
-            session.add(cache_entry)
-
-        await session.commit()
-
-
-# ============================================================
 # ROOT
 # ============================================================
 
+
 @app.get("/")
 async def root():
-
     return {
         "status": "JARVIS GEO-APP API",
-        "version": "2.0.0",
+        "version": "2.1.0",
     }
 
 
@@ -286,25 +480,21 @@ async def root():
 # REGIONS
 # ============================================================
 
+
 @app.get(
     "/api/regions",
     response_model=List[RegionResponse],
 )
 async def get_regions():
 
-    result = []
-
-    for region_name, cities in REGIONS.items():
-
-        result.append(
-            RegionResponse(
-                id=normalize_region_id(region_name),
-                name=region_name,
-                cities=cities,
-            )
+    return [
+        RegionResponse(
+            id=normalize_region_id(region_name),
+            name=region_name,
+            cities=cities,
         )
-
-    return result
+        for region_name, cities in REGIONS.items()
+    ]
 
 
 @app.get(
@@ -337,6 +527,7 @@ async def get_cities(
 # WEATHER
 # ============================================================
 
+
 @app.get(
     "/api/weather/{city}",
     response_model=WeatherResponse,
@@ -348,7 +539,6 @@ async def get_weather_endpoint(
     cached = await check_weather_cache(city)
 
     if cached:
-
         return WeatherResponse(
             city=city,
             description=cached.get(
@@ -388,8 +578,9 @@ async def get_weather_endpoint(
 
 
 # ============================================================
-# POIS
+# POIS — QUERY / IMPORT FROM OSM
 # ============================================================
+
 
 @app.post("/api/pois/query")
 async def query_pois(
@@ -397,131 +588,131 @@ async def query_pois(
 ):
 
     if not query.city:
-
         raise HTTPException(
             status_code=400,
             detail="City required",
         )
 
-    limit = min(
-        max(query.limit, 1),
-        DEFAULT_LIMIT,
-    )
+    limit = normalize_limit(query.limit)
+    offset = normalize_offset(query.offset)
 
-    cached = await get_cached_osm(
-        query.city
-    )
+    async with AsyncSessionLocal() as session:
 
-    if cached:
+        # ----------------------------------------------------
+        # 1. Сначала смотрим нормальную таблицу places
+        # ----------------------------------------------------
 
-        log(
-            f"OSM cache hit for {query.city}: "
-            f"{len(cached)} items"
-        )
-
-        attractions = []
-
-        for item in cached:
-
-            raw_data = item.get(
-                "sights_data"
-            )
-
-            if not raw_data:
-                continue
-
-            try:
-                attr = json.loads(raw_data)
-
-            except json.JSONDecodeError:
-
-                error(
-                    "Некорректный JSON в OSM cache: "
-                    f"{item.get('id')}"
-                )
-
-                continue
-
-            if query.tags:
-
-                attr_type = attr.get(
-                    "type",
-                    "",
-                ).lower()
-
-                if not any(
-                    tag.lower() in attr_type
-                    for tag in query.tags
-                ):
-                    continue
-
-            attractions.append(attr)
-
-    else:
-
-        log(
-            f"Fetching OSM data for {query.city}"
-        )
-
-        attractions = await get_attractions_osm(
+        places = await get_places_from_db(
+            session,
+            region=query.region,
             city=query.city,
+            offset=offset,
             limit=limit,
         )
 
-        if attractions:
+        # ----------------------------------------------------
+        # 2. Если город ещё не импортирован — получаем OSM
+        # ----------------------------------------------------
 
-            await save_to_osm_cache(
-                query.city,
-                attractions,
+        if not places and offset == 0:
+
+            log(
+                f"Places DB empty for {query.city}. "
+                f"Fetching OSM data."
             )
 
-    pois = []
-
-    for attr in attractions[:limit]:
-
-        if not attr.get("id"):
-            continue
-
-        if not attr.get("name"):
-            continue
-
-        if attr.get("lat") is None:
-            continue
-
-        if attr.get("lon") is None:
-            continue
-
-        pois.append(
-            POI(
-                id=attr["id"],
-                name=attr["name"],
+            osm_attractions = await get_attractions_osm(
                 city=query.city,
-                region=query.region,
-                address=attr.get(
-                    "address",
-                    "",
-                ),
-                category=normalize_category(
-                    attr.get("type", "")
-                ),
-                lat=attr["lat"],
-                lon=attr["lon"],
-                hours=attr.get("hours"),
-                phone=attr.get("phone"),
-                image_url=None,
+                limit=100,
             )
+
+            if osm_attractions:
+
+                await upsert_osm_places(
+                    session,
+                    osm_attractions,
+                    city=query.city,
+                    region=query.region,
+                )
+
+                await session.commit()
+
+                # Повторно читаем уже из Place.
+                places = await get_places_from_db(
+                    session,
+                    region=query.region,
+                    city=query.city,
+                    offset=0,
+                    limit=MAX_POI_LIMIT,
+                )
+
+        # ----------------------------------------------------
+        # 3. Фильтр категорий
+        # ----------------------------------------------------
+
+        if query.tags:
+
+            normalized_tags = {
+                normalize_category(tag)
+                for tag in query.tags
+            }
+
+            places = [
+                place
+                for place in places
+                if place.category in normalized_tags
+            ]
+
+        # ----------------------------------------------------
+        # 4. Фото
+        # ----------------------------------------------------
+
+        place_ids = [
+            place.place_id
+            for place in places
+        ]
+        for place in places:
+            await ensure_place_photo(
+                session,
+                place,
+            )
+        photos = await get_photos_map(
+            session,
+            place_ids,
         )
 
-    return {
-        "count": len(pois),
-        "region": query.region,
-        "city": query.city,
-        "tags": query.tags,
-        "pois": [
-            poi.model_dump()
-            for poi in pois
-        ],
-    }
+        pois = []
+
+        for place in places[:limit]:
+
+            photo = photos.get(place.place_id)
+
+            pois.append(
+                place_to_dict(
+                    place,
+                    image_url=(
+                        photo.local_url
+                        if photo
+                        else None
+                    ),
+                )
+            )
+        await session.commit()
+
+        return {
+            "count": len(pois),
+            "region": query.region,
+            "city": query.city,
+            "tags": query.tags,
+            "offset": offset,
+            "limit": limit,
+            "pois": pois,
+        }
+
+
+# ============================================================
+# POIS — LIST FROM DATABASE
+# ============================================================
 
 
 @app.get("/api/pois")
@@ -529,65 +720,162 @@ async def get_all_pois(
     region: Optional[str] = None,
     city: Optional[str] = None,
     category: Optional[str] = None,
-    limit: int = 50,
+    offset: int = 0,
+    limit: int = 30,
 ):
 
-    limit = max(limit, 1)
+    limit = normalize_limit(limit)
+    offset = normalize_offset(offset)
+
+    if category:
+        category = normalize_category(category)
 
     async with AsyncSessionLocal() as session:
 
-        query = select(OsmCache)
+        places = await get_places_from_db(
+            session,
+            region=region,
+            city=city,
+            category=category,
+            offset=offset,
+            limit=limit,
+        )
 
-        if city:
-            query = query.where(
-                OsmCache.city == city
+        photos = await get_photos_map(
+            session,
+            [
+                place.place_id
+                for place in places
+            ],
+        )
+
+        pois = []
+
+        for place in places:
+
+            photo = photos.get(
+                place.place_id
             )
 
-        result = await session.execute(query)
-
-        items = result.scalars().all()
-
-    pois = []
-
-    for item in items[:limit]:
-
-        if not item.sights_data:
-            continue
-
-        try:
-            data = json.loads(
-                item.sights_data
+            pois.append(
+                place_to_dict(
+                    place,
+                    image_url=(
+                        photo.local_url
+                        if photo
+                        else None
+                    ),
+                )
             )
 
-        except json.JSONDecodeError:
+        return {
+            "pois": pois,
+            "count": len(pois),
+            "offset": offset,
+            "limit": limit,
+        }
 
-            error(
-                f"Некорректный JSON OSM cache: "
-                f"{item.id}"
+
+# ============================================================
+# POI — DETAIL
+# ============================================================
+
+
+@app.get(
+    "/api/pois/{place_id}",
+    response_model=POIDetail,
+)
+async def get_poi_detail(
+    place_id: str,
+):
+
+    async with AsyncSessionLocal() as session:
+
+        place = await get_place_by_id(
+            session,
+            place_id,
+        )
+
+        if place is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Place not found",
             )
 
-            continue
+        result = await session.execute(
+            select(PlacePhoto)
+            .where(
+                PlacePhoto.place_id == place_id
+            )
+            .order_by(
+                PlacePhoto.id.asc()
+            )
+            .limit(1)
+        )
 
-        if category:
+        photo = result.scalar_one_or_none()
 
-            current_category = normalize_category(
-                data.get("type", "")
+        return POIDetail(
+            **place_to_dict(
+                place,
+                image_url=(
+                    photo.local_url
+                    if photo
+                    else None
+                ),
+            ),
+            photo=photo_to_dict(photo),
+        )
+
+
+# ============================================================
+# POI — PHOTOS
+# ============================================================
+
+
+@app.get("/api/pois/{place_id}/photos")
+async def get_poi_photos(
+    place_id: str,
+):
+
+    async with AsyncSessionLocal() as session:
+
+        place = await get_place_by_id(
+            session,
+            place_id,
+        )
+
+        if place is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Place not found",
             )
 
-            if current_category != category:
-                continue
+        result = await session.execute(
+            select(PlacePhoto)
+            .where(
+                PlacePhoto.place_id == place_id
+            )
+            .order_by(
+                PlacePhoto.id.asc()
+            )
+        )
 
-        pois.append(data)
+        photos = result.scalars().all()
 
-    return {
-        "pois": pois,
-        "count": len(pois),
-    }
+        return {
+            "place_id": place_id,
+            "photos": [
+                photo_to_dict(photo)
+                for photo in photos
+            ],
+        }
 
 
 # ============================================================
 # ROUTES
 # ============================================================
+
 
 @app.post(
     "/api/route/build",
@@ -607,39 +895,68 @@ async def build_route(
             ),
         )
 
-    route_points = []
+    # Убираем пустые и повторяющиеся ID,
+    # сохраняя порядок пользователя.
+    requested_ids = []
+
+    seen_ids = set()
+
+    for poi_id in req.poi_ids:
+
+        if not poi_id:
+            continue
+
+        if poi_id in seen_ids:
+            continue
+
+        seen_ids.add(poi_id)
+        requested_ids.append(poi_id)
+
+    if len(requested_ids) < 2:
+
+        raise HTTPException(
+            status_code=400,
+            detail="Need at least 2 unique points",
+        )
 
     async with AsyncSessionLocal() as session:
 
-        for poi_id in req.poi_ids:
-
-            if not poi_id:
-                continue
-
-            result = await session.execute(
-                select(OsmCache)
-                .where(
-                    OsmCache.sights_data.contains(
-                        f'"id": "{poi_id}"'
-                    )
-                )
+        result = await session.execute(
+            select(Place)
+            .where(
+                Place.place_id.in_(requested_ids)
             )
+        )
 
-            item = result.scalar_one_or_none()
+        places = list(
+            result.scalars().all()
+        )
 
-            if not item:
-                continue
+    places_by_id = {
+        place.place_id: place
+        for place in places
+    }
 
-            if item.lat is None or item.lon is None:
-                continue
+    route_points = []
 
-            route_points.append(
-                {
-                    "lat": item.lat,
-                    "lon": item.lon,
-                    "name": item.name or "",
-                }
-            )
+    for poi_id in requested_ids:
+
+        place = places_by_id.get(poi_id)
+
+        if place is None:
+            continue
+
+        if place.lat is None or place.lon is None:
+            continue
+
+        route_points.append(
+            {
+                "id": place.place_id,
+                "lat": float(place.lat),
+                "lon": float(place.lon),
+                "name": place.name,
+            }
+        )
 
     if len(route_points) < 2:
 
@@ -648,54 +965,65 @@ async def build_route(
             detail="Need at least 2 points with coordinates",
         )
 
+    # --------------------------------------------------------
+    # Оптимизация выполняется ОДИН раз здесь.
+    # map_service больше не должен оптимизировать маршрут.
+    # --------------------------------------------------------
+
     if req.optimize:
-        optimized = optimizeRoutePoints(
+        route_points = optimizeRoutePoints(
             route_points
         )
-    else:
-        optimized = route_points
 
     google_url = build_google_maps_link(
-        optimized
+        route_points
     )
 
-    total_km = 0.0
+    if not google_url:
+
+        raise HTTPException(
+            status_code=500,
+            detail="Unable to build Google Maps route",
+        )
+
+    # --------------------------------------------------------
+    # Реальное расстояние через OSRM.
+    # Если OSRM недоступен — НЕ подставляем фейковое число.
+    # --------------------------------------------------------
+
+    total_distance = 0.0
+    distance_failed = False
 
     for index in range(
-        len(optimized) - 1
+        len(route_points) - 1
     ):
 
-        lat1 = optimized[index]["lat"]
-        lon1 = optimized[index]["lon"]
+        a = route_points[index]
+        b = route_points[index + 1]
 
-        lat2 = optimized[index + 1]["lat"]
-        lon2 = optimized[index + 1]["lon"]
-
-        dx = (
-            math.radians(lon2 - lon1)
-            * math.cos(
-                math.radians(
-                    (lat1 + lat2) / 2
-                )
-            )
-            * 111.32
+        distance = await get_distance_osrm(
+            a["lat"],
+            a["lon"],
+            b["lat"],
+            b["lon"],
         )
 
-        dy = (
-            math.radians(lat2 - lat1)
-            * 111.32
-        )
+        if distance is None:
+            distance_failed = True
+            break
 
-        total_km += math.sqrt(
-            dx ** 2 + dy ** 2
-        )
+        total_distance += distance
 
     return RouteResponse(
-        poi_ids=req.poi_ids,
+        poi_ids=[
+            point["id"]
+            for point in route_points
+        ],
         google_maps_url=google_url,
-        total_distance_km=round(
-            total_km,
-            1,
+        total_distance_km=(
+            round(total_distance, 1)
+            if not distance_failed
+            else None
         ),
         optimized=req.optimize,
     )
@@ -705,6 +1033,7 @@ async def build_route(
 # FAVORITES
 # ============================================================
 
+
 @app.post("/api/favorites/toggle")
 async def toggle_favorite(
     data: FavoriteToggle,
@@ -712,11 +1041,17 @@ async def toggle_favorite(
 
     async with AsyncSessionLocal() as session:
 
+        # ----------------------------------------------------
+        # Проверяем существующее избранное
+        # ----------------------------------------------------
+
         result = await session.execute(
-            select(Favorite).where(
+            select(Favorite)
+            .where(
                 Favorite.user_id == data.user_id,
                 Favorite.place_id == data.poi_id,
             )
+            .limit(1)
         )
 
         existing = result.scalar_one_or_none()
@@ -724,7 +1059,8 @@ async def toggle_favorite(
         if existing:
 
             await session.execute(
-                delete(Favorite).where(
+                delete(Favorite)
+                .where(
                     Favorite.id == existing.id
                 )
             )
@@ -737,31 +1073,33 @@ async def toggle_favorite(
                 "favorited": False,
             }
 
-        result = await session.execute(
-            select(OsmCache)
-            .where(
-                OsmCache.sights_data.contains(
-                    f'"id": "{data.poi_id}"'
-                )
-            )
+        # ----------------------------------------------------
+        # Получаем место из Place
+        # ----------------------------------------------------
+
+        place = await get_place_by_id(
+            session,
+            data.poi_id,
         )
 
-        place = result.scalar_one_or_none()
-
-        if not place:
+        if place is None:
 
             raise HTTPException(
                 status_code=404,
                 detail="Place not found",
             )
 
+        # ----------------------------------------------------
+        # Создаём Favorite
+        # ----------------------------------------------------
+
         favorite = Favorite(
             user_id=data.user_id,
-            place_id=data.poi_id,
-            place_name=place.name or "",
+            place_id=place.place_id,
+            place_name=place.name,
             address=place.address or "",
-            lat=place.lat or 0.0,
-            lon=place.lon or 0.0,
+            lat=float(place.lat),
+            lon=float(place.lon),
         )
 
         session.add(favorite)
@@ -787,29 +1125,33 @@ async def get_favorites(
             .where(
                 Favorite.user_id == user_id
             )
+            .order_by(
+                Favorite.created_at.desc()
+            )
         )
 
         favorites = result.scalars().all()
 
-    return {
-        "user_id": user_id,
-        "favorites": [
-            {
-                "id": favorite.id,
-                "place_id": favorite.place_id,
-                "place_name": favorite.place_name,
-                "address": favorite.address,
-                "lat": favorite.lat,
-                "lon": favorite.lon,
-            }
-            for favorite in favorites
-        ],
-    }
+        return {
+            "user_id": user_id,
+            "favorites": [
+                {
+                    "id": favorite.id,
+                    "place_id": favorite.place_id,
+                    "place_name": favorite.place_name,
+                    "address": favorite.address,
+                    "lat": favorite.lat,
+                    "lon": favorite.lon,
+                }
+                for favorite in favorites
+            ],
+        }
 
 
 # ============================================================
 # HEALTH
 # ============================================================
+
 
 @app.get("/health")
 async def health():
@@ -823,6 +1165,13 @@ async def health():
 # ============================================================
 # TELEGRAM AUTH
 # ============================================================
+#
+# ВАЖНО:
+# Сейчас здесь остаётся существующая схема разбора initData.
+# Она НЕ является полноценной Telegram HMAC-проверкой.
+# Это отдельный следующий шаг безопасности.
+# ============================================================
+
 
 @app.post("/api/auth/telegram")
 async def auth_telegram(
@@ -929,6 +1278,7 @@ async def auth_telegram(
 # ============================================================
 # LOCAL DEVELOPMENT
 # ============================================================
+
 
 if __name__ == "__main__":
 

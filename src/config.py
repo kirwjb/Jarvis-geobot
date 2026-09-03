@@ -37,6 +37,13 @@ if nominatim_raw:
     NOMINATIM_URLS = [url.strip() for url in nominatim_raw.split(",") if url.strip()]
 else:
     NOMINATIM_URLS = ["https://nominatim.openstreetmap.org/search"]
+
+overpass_raw = os.getenv("OVERPASS_URLS", "")
+if overpass_raw:
+    OVERPASS_URLS = [url.strip() for url in overpass_raw.split(",") if url.strip()]
+else:
+    OVERPASS_URLS = ["https://overpass-api.de/api/interpreter"]
+
 WIKIMEDIA_API_URL = os.getenv("WIKIMEDIA_API_URL", "").strip()
 
 DEFAULT_LANGUAGE = os.getenv("DEFAULT_LANGUAGE", "ru").strip().lower()

@@ -2,7 +2,7 @@ import hashlib
 
 import aiohttp
 
-from src.config import NOMINATIM_URLS
+from src.config import NOMINATIM_URLS, OVERPASS_URLS
 from src.utils.API_codes import get_api_error_message
 from src.utils.utils import error, log
 
@@ -10,7 +10,7 @@ from src.utils.utils import error, log
 TOURISM_TYPES = "attraction|museum|viewpoint|gallery|theme_park"
 HISTORIC_TYPES = "monument|memorial|castle|ruins|church|cathedral|manor"
 
-NOMINATIM_URL = NOMINATIM_URLS[0] if OVERPASS_URLS else "https://nominatim.openstreetmap.org/search"
+NOMINATIM_URL = NOMINATIM_URLS[0] if NOMINATIM_URLS else "https://nominatim.openstreetmap.org/search"
 
 HEADERS = {
     "User-Agent": "JARVIS-Travel-Bot/1.0",

@@ -11,38 +11,74 @@ async def get_place_photo(
 
     result = await session.execute(
         select(PlacePhoto)
-        .where(PlacePhoto.place_id == place_id)
+        .where(
+            PlacePhoto.place_id == place_id
+        )
+        .order_by(PlacePhoto.id.asc())
         .limit(1)
     )
 
     return result.scalar_one_or_none()
 
 
-async def save_place_photo(
+async def get_place_photos(
     session: AsyncSession,
     place_id: str,
-    photo: dict,
+) -> list[PlacePhoto]:
+
+    result = await session.execute(
+        select(PlacePhoto)
+        .where(
+            PlacePhoto.place_id == place_id
+        )
+        .order_by(PlacePhoto.id.asc())
+    )
+
+    return list(result.scalars().all())
+
+
+async def save_place_photo(
+    session: AsyncSession,
+    *,
+    place_id: str,
+    source: str,
+    original_url: str,
+    local_url: str,
+    author: str | None = None,
+    license: str | None = None,
 ) -> PlacePhoto:
 
-    existing = await get_place_photo(
-        session,
-        place_id,
+    existing = await session.execute(
+        select(PlacePhoto)
+        .where(
+            PlacePhoto.place_id == place_id,
+            PlacePhoto.original_url == original_url,
+        )
+        .limit(1)
     )
 
-    if existing:
-        return existing
+    photo = existing.scalar_one_or_none()
 
-    item = PlacePhoto(
+    if photo:
+        photo.local_url = local_url
+        photo.author = author
+        photo.license = license
+
+        await session.flush()
+
+        return photo
+
+    photo = PlacePhoto(
         place_id=place_id,
-        source=photo["source"],
-        original_url=photo["original_url"],
-        local_url=photo["local_url"],
-        author=photo.get("author"),
-        license=photo.get("license"),
+        source=source,
+        original_url=original_url,
+        local_url=local_url,
+        author=author,
+        license=license,
     )
 
-    session.add(item)
+    session.add(photo)
 
     await session.flush()
 
-    return item
+    return photo
