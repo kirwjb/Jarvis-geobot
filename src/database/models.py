@@ -12,6 +12,7 @@ from sqlalchemy import (
     Date,
     UniqueConstraint,
     ForeignKey,
+    Column
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -348,39 +349,11 @@ class GroupVote(Base):
 class PlacePhoto(Base):
     __tablename__ = "place_photos"
 
-    id: Mapped[int] = mapped_column(
-        Integer,
-        primary_key=True,
-        autoincrement=True,
-    )
-
-    place_id: Mapped[str] = mapped_column(
-        String(255),
-        index=True,
-        nullable=False,
-    )
-
-    source: Mapped[str] = mapped_column(
-        String(50),
-        nullable=False,
-    )
-
-    original_url: Mapped[str] = mapped_column(
-        Text,
-        nullable=False,
-    )
-
-    local_url: Mapped[str] = mapped_column(
-        Text,
-        nullable=False,
-    )
-
-    author: Mapped[Optional[str]] = mapped_column(
-        Text,
-        nullable=True,
-    )
-
-    license: Mapped[Optional[str]] = mapped_column(
-        Text,
-        nullable=True,
-    )
+    id = Column(Integer, primary_key=True)
+    place_id = Column(String, ForeignKey("places.place_id"), nullable=False)
+    source = Column(String, nullable=False)
+    original_url = Column(String, nullable=False)
+    local_url_thumb = Column(String, nullable=True)
+    local_url_medium = Column(String, nullable=True)
+    author = Column(String, nullable=True)
+    license = Column(String, nullable=True)
