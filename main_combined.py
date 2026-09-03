@@ -2,7 +2,6 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
-
 from telebot.async_telebot import AsyncTeleBot
 import uvicorn
 
@@ -102,6 +101,16 @@ async def serve_geoapp_root(request: Request, call_next):
     return await call_next(request)
 
 
+
+
+MEDIA_DIR = Path(__file__).resolve().parent / "media"
+MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+
+fastapi_app.mount(
+    "/media",
+    StaticFiles(directory=str(MEDIA_DIR)),
+    name="media",
+)
 
 fastapi_app.mount(
     "/",

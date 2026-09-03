@@ -2,14 +2,19 @@ import hashlib
 
 import aiohttp
 
-from src.config import OVERPASS_URLS
+from src.config import NOMINATIM_URLS, OVERPASS_URLS
 from src.utils.API_codes import get_api_error_message
 from src.utils.utils import error, log
-from src.services.wiki_service import get_wiki_photo
 
 
 TOURISM_TYPES = "attraction|museum|viewpoint|gallery|theme_park"
 HISTORIC_TYPES = "monument|memorial|castle|ruins|church|cathedral|manor"
+
+NOMINATIM_URL = NOMINATIM_URLS[0] if NOMINATIM_URLS else "https://nominatim.openstreetmap.org/search"
+
+HEADERS = {
+    "User-Agent": "JARVIS-Travel-Bot/1.0",
+}
 
 TYPE_MAP = {
     "museum": "Музей",
@@ -27,8 +32,9 @@ TYPE_MAP = {
 }
 
 
-async def get_city_coords(city: str) -> tuple[float | None, float | None]:
-    url = OVERPASS_URLS[0] if OVERPASS_URLS else "https://nominatim.openstreetmap.org/search"
+async def get_city_coords(
+    city: str,
+) -> tuple[float | None, float | None]:
 
     params = {
         "q": city,
@@ -37,22 +43,17 @@ async def get_city_coords(city: str) -> tuple[float | None, float | None]:
         "accept-language": "ru",
     }
 
-    headers = {
-        "User-Agent": "JARVIS-Travel-Bot/1.0",
-    }
-
     try:
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(headers=HEADERS) as session:
             async with session.get(
-                url,
+                NOMINATIM_URL,
                 params=params,
-                headers=headers,
                 timeout=10,
             ) as response:
 
                 if response.status != 200:
                     error(
-                        f"Ошибка Nominatim {response.status}: "
+                        f"Nominatim {response.status}: "
                         f"{get_api_error_message(response.status)}"
                     )
                     return None, None
@@ -60,12 +61,16 @@ async def get_city_coords(city: str) -> tuple[float | None, float | None]:
                 data = await response.json()
 
                 if not data:
+                    log(f"Nominatim: город не найден: {city}")
                     return None, None
 
-                return float(data[0]["lat"]), float(data[0]["lon"])
+                return (
+                    float(data[0]["lat"]),
+                    float(data[0]["lon"]),
+                )
 
     except Exception as exc:
-        error(f"Ошибка получения координат города: {exc}")
+        error(f"Ошибка получения координат города {city}: {exc}")
         return None, None
 
 
@@ -79,23 +84,28 @@ async def get_attractions_osm(
     if lat is None or lon is None:
         return []
 
-    bbox = f"{lat - 0.1},{lon - 0.15},{lat + 0.1},{lon + 0.15}"
+    bbox = (
+        f"{lat - 0.1},"
+        f"{lon - 0.15},"
+        f"{lat + 0.1},"
+        f"{lon + 0.15}"
+    )
 
     query = f"""
     [out:json][timeout:15];
     (
         node["tourism"~"{TOURISM_TYPES}"]({bbox});
         way["tourism"~"{TOURISM_TYPES}"]({bbox});
-
         node["historic"~"{HISTORIC_TYPES}"]({bbox});
         way["historic"~"{HISTORIC_TYPES}"]({bbox});
     );
     out tags center;
     """
 
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(headers=HEADERS) as session:
 
         for url in OVERPASS_URLS:
+
             try:
                 log(f"Overpass: {city} → {url}")
 
@@ -113,12 +123,13 @@ async def get_attractions_osm(
                         continue
 
                     data = await response.json()
+
                     attractions = _parse_attractions(
                         data.get("elements", [])
                     )
 
                     attractions.sort(
-                        key=lambda item: item["name"]
+                        key=lambda item: item["name"].lower()
                     )
 
                     log(
@@ -129,43 +140,62 @@ async def get_attractions_osm(
                     return attractions[:limit]
 
             except Exception as exc:
-                error(f"Overpass {url}: {exc}")
+                error(
+                    f"Ошибка Overpass {url}: {exc}"
+                )
 
-    error(f"Все зеркала Overpass недоступны для {city}")
+    error(
+        f"Все зеркала Overpass недоступны для {city}"
+    )
+
     return []
 
 
-def _parse_attractions(elements: list[dict]) -> list[dict]:
+def _parse_attractions(
+    elements: list[dict],
+) -> list[dict]:
+
     attractions = []
     seen = set()
 
     for element in elements:
+
         tags = element.get("tags", {})
+
         name = tags.get("name")
 
         if not name:
             continue
 
-        lat = element.get("lat") or element.get("center", {}).get("lat")
-        lon = element.get("lon") or element.get("center", {}).get("lon")
+        lat = (
+            element.get("lat")
+            or element.get("center", {}).get("lat")
+        )
+
+        lon = (
+            element.get("lon")
+            or element.get("center", {}).get("lon")
+        )
 
         if lat is None or lon is None:
             continue
 
-        key = (name, round(lat, 4), round(lon, 4))
+        key = (
+            name,
+            round(lat, 4),
+            round(lon, 4),
+        )
 
         if key in seen:
             continue
 
         seen.add(key)
 
-        raw_id = str(element.get("id", ""))
-        place_id = (
-            raw_id
-            if raw_id.isdigit()
-            else hashlib.md5(
-                f"{name}|{lat}|{lon}".encode()
-            ).hexdigest()[:12]
+        place_id = _build_place_id(
+            element,
+            name,
+            lat,
+            lon,
         )
 
         object_type = (
@@ -174,39 +204,58 @@ def _parse_attractions(elements: list[dict]) -> list[dict]:
             or "attraction"
         )
 
-        address = ", ".join(
-            filter(
-                None,
-                (
-                    tags.get("addr:street"),
-                    tags.get("addr:housenumber"),
-                    tags.get("addr:city"),
-                ),
-            )
-        )
+        address = _build_address(tags)
 
         attractions.append({
             "id": place_id,
             "name": name,
-            "address": address or tags.get("addr:full", ""),
+            "address": address,
             "lat": lat,
             "lon": lon,
             "type": TYPE_MAP.get(
                 object_type,
                 object_type.replace("_", " ").capitalize(),
             ),
-            "hours": tags.get("opening_hours", ""),
-            "phone": tags.get("phone", ""),
-            "image_url": _get_osm_image(tags),
+            "hours": tags.get("opening_hours") or None,
+            "phone": tags.get("phone") or None,
         })
 
     return attractions
 
 
-def _get_osm_image(tags: dict) -> str:
-    image = tags.get("image")
+def _build_place_id(
+    element: dict,
+    name: str,
+    lat: float,
+    lon: float,
+) -> str:
 
-    if image and image.startswith("http"):
-        return image
+    element_type = element.get("type", "place")
+    raw_id = element.get("id")
 
-    return ""
+    if raw_id is not None:
+        return f"osm:{element_type}:{raw_id}"
+
+    source = f"{name}|{lat}|{lon}"
+
+    digest = hashlib.sha256(
+        source.encode("utf-8")
+    ).hexdigest()[:16]
+
+    return f"osm:{digest}"
+
+
+def _build_address(tags: dict) -> str:
+
+    address = ", ".join(
+        filter(
+            None,
+            (
+                tags.get("addr:street"),
+                tags.get("addr:housenumber"),
+                tags.get("addr:city"),
+            ),
+        )
+    )
+
+    return address or tags.get("addr:full", "")

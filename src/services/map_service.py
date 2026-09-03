@@ -1,30 +1,73 @@
-from src.services.optimizer_service import optimizeRoutePoints
+from urllib.parse import quote
 
-def build_google_maps_link(route_points):
+
+def build_google_maps_link(route_points: list[dict]) -> str | None:
     if len(route_points) < 2:
         return None
-    optimizedPoints = optimizeRoutePoints(route_points)
 
-    origin = f"{optimizedPoints[0]['lat']},{optimizedPoints[0]['lon']}"
-    destination = f"{optimizedPoints[-1]['lat']},{optimizedPoints[-1]['lon']}"
+    origin = (
+        f"{route_points[0]['lat']},"
+        f"{route_points[0]['lon']}"
+    )
 
-    waypoints_list = [f"{p['lat']},{p['lon']}" for p in optimizedPoints[1:-1]]
-    
+    destination = (
+        f"{route_points[-1]['lat']},"
+        f"{route_points[-1]['lon']}"
+    )
+
+    waypoints_list = [
+        f"{point['lat']},{point['lon']}"
+        for point in route_points[1:-1]
+    ]
+
+    params = [
+        f"api=1",
+        f"origin={quote(origin)}",
+        f"destination={quote(destination)}",
+    ]
+
     if waypoints_list:
         waypoints = "|".join(waypoints_list)
-        return f"https://www.google.com/maps/dir/?api=1&origin={origin}&destination={destination}&waypoints={waypoints}"
-        
-    return f"https://www.google.com/maps/dir/?api=1&origin={origin}&destination={destination}"
+        params.append(
+            f"waypoints={quote(waypoints)}"
+        )
 
-#DON'T DELETE: These functions are commented out because they are not currently used in the codebase. They may be useful in the future for generating map links for Yandex and OpenStreetMap, but for now, they are kept as comments to avoid cluttering the code with unused functions.
-#def build_yandex_map_link(route_points):
-    #if len(route_points) < 2:
-        #return None
-    #points = "~".join([f"{p['lon']},{p['lat']}" for p in route_points])
-    #return f"https://yandex.by/maps/?rtext={points}&rtt=auto"
+    return (
+        "https://www.google.com/maps/dir/?"
+        + "&".join(params)
+    )
 
-#def build_osm_map_link(route_points):
-    #if len(route_points) < 2:
-        #return None
-    #coords = ";".join([f"{p['lon']},{p['lat']}" for p in route_points])
-    #return f"https://www.openstreetmap.org/directions?route={coords}"
+
+# DON'T DELETE:
+# These functions are commented out because they are not currently
+# used in the codebase. They may be useful in the future for generating
+# map links for Yandex and OpenStreetMap.
+#
+# def build_yandex_map_link(route_points):
+#     if len(route_points) < 2:
+#         return None
+#
+#     points = "~".join(
+#         f"{p['lon']},{p['lat']}"
+#         for p in route_points
+#     )
+#
+#     return (
+#         "https://yandex.by/maps/"
+#         f"?rtext={points}&rtt=auto"
+#     )
+#
+#
+# def build_osm_map_link(route_points):
+#     if len(route_points) < 2:
+#         return None
+#
+#     coords = ";".join(
+#         f"{p['lon']},{p['lat']}"
+#         for p in route_points
+#     )
+#
+#     return (
+#         "https://www.openstreetmap.org/directions"
+#         f"?route={coords}"
+#     )
