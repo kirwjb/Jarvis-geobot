@@ -516,6 +516,14 @@ Created by [@kirwjb](https://github.com/kirwjb)
 Если проект оказался полезным — поставьте ⭐ репозиторию.
 
 ---
+## 📱 Screenshots
+<img width="635" height="1280" alt="1000007189" src="https://github.com/user-attachments/assets/83d24a3e-08e7-46c6-ab1a-336c76cdf3ce" />
+<img width="691" height="1280" alt="1000007187" src="https://github.com/user-attachments/assets/26bb0828-4e83-45ce-a031-fc27b8a8a2ff" />
+<img width="635" height="1280" alt="1000007186" src="https://github.com/user-attachments/assets/21f82c42-55a6-4aa2-93ab-76960b3652e2" />
+<img width="633" height="1280" alt="1000007185" src="https://github.com/user-attachments/assets/f8e76df6-c3ad-4e7a-afc8-fd08018b8ee5" />
+
+
+---
 
 > 🗺️ **JARVIS GEO-BOT** — планируй поездку, собирай места, голосуй вместе с друзьями и получай готовый маршрут.
 > 
