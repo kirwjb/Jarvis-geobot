@@ -1,64 +1,57 @@
-import sys
 import logging
+import sys
 from logging.handlers import RotatingFileHandler
-import os
+from pathlib import Path
 
 
-
+# ANSI colors for the lightweight development console helpers.
 GREEN = "\033[95m"
 RED = "\033[31m"
 PURPLE = "\033[35m"
 RESET = "\033[0m"
 
-# --- PART TIME LOCAL LOGGING FEATURES, RECOMMENDED FOR DEVELOPMENT ---
-def log(msg):
+
+def log(msg: str) -> None:
     print(f"{GREEN}[LOG] {msg}{RESET}", flush=True)
 
-def error(msg):
+
+def error(msg: str) -> None:
     print(f"{RED}[ERROR] {msg}{RESET}", file=sys.stderr, flush=True)
 
-def info(msg):
+
+def info(msg: str) -> None:
     print(f"{PURPLE}[INFO] {msg}{RESET}", flush=True)
 
-#--- SETUP ROTATING FILE HANDLER FOR LOGGING, RECOMENDED FOR WORK ---
 
-if not os.path.exists("logs"):
-    os.makedirs("logs")
+BASE_DIR = Path(__file__).resolve().parents[2]
+LOG_DIR = BASE_DIR / "logs"
+LOG_DIR.mkdir(parents=True, exist_ok=True)
 
-log_formatter = logging.Formatter(
-    fmt="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S"
-)
-
-file_handler = RotatingFileHandler(
-    filename="logs/bot.log", 
-    mode="a", 
-    maxBytes=5*1024*1024, 
-    backupCount=5, 
-    encoding="utf-8"
-)
-file_handler.setFormatter(log_formatter)
-file_handler.setLevel(logging.INFO)
+LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+MAX_LOG_SIZE = 5 * 1024 * 1024
+BACKUP_COUNT = 5
 
 
+def _configure_file_logger(name: str, filename: str) -> logging.Logger:
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
 
-logger = logging.getLogger("JARVIS_GEO")
-logger.setLevel(logging.INFO)
-logger.addHandler(file_handler)
+    if not logger.handlers:
+        handler = RotatingFileHandler(
+            LOG_DIR / filename,
+            mode="a",
+            maxBytes=MAX_LOG_SIZE,
+            backupCount=BACKUP_COUNT,
+            encoding="utf-8",
+        )
+        handler.setFormatter(logging.Formatter(LOG_FORMAT, datefmt=DATE_FORMAT))
+        handler.setLevel(logging.INFO)
+        logger.addHandler(handler)
 
-#--- SETUP ROTATING FILE HANDLER FOR ADMIN LOGGING, RECOMENDED FOR WORK ---
-if not os.path.exists("logs"):
-    os.makedirs("logs")
+    return logger
 
-admin_logger = logging.getLogger("JARVIS_ADMIN")
-admin_file_handler = RotatingFileHandler(
-    filename="logs/admin.log", 
-    mode="a", 
-    maxBytes=5*1024*1024, 
-    backupCount=5, 
-    encoding="utf-8"
-)
-admin_file_handler.setFormatter(log_formatter)
-admin_file_handler.setLevel(logging.INFO)
-admin_logger.setLevel(logging.INFO)
-admin_logger.addHandler(admin_file_handler)
+
+logger = _configure_file_logger("JARVIS_GEO", "bot.log")
+admin_logger = _configure_file_logger("JARVIS_ADMIN", "admin.log")
