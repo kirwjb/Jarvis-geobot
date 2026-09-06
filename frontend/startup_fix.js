@@ -31,17 +31,18 @@
     return true;
   }
 
-  start.addEventListener('click', event => {
+  const activate = event => {
     event.preventDefault();
     event.stopPropagation();
     forceTravelScreen();
-  }, true);
+  };
 
-  start.addEventListener('touchend', event => {
-    event.preventDefault();
-    event.stopPropagation();
-    forceTravelScreen();
-  }, { capture: true, passive: false });
+  // Pointer events are the lowest-level reliable path for mouse + touch in Telegram WebView.
+  start.addEventListener('pointerdown', activate, { capture: true, passive: false });
+  start.addEventListener('click', activate, { capture: true, passive: false });
+
+  // Fallback for older WebViews without reliable PointerEvent support.
+  start.addEventListener('touchend', activate, { capture: true, passive: false });
 
   // Protect against app.js restoring a stale saved screen while its async init finishes.
   const guard = setInterval(() => {
