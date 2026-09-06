@@ -1,5 +1,7 @@
-import aiohttp
+import json
 from urllib.parse import quote
+
+import aiohttp
 
 from src.utils.utils import error
 from src.utils.API_codes import get_api_error_message
@@ -8,8 +10,8 @@ from src.utils.API_codes import get_api_error_message
 WTTR_URL = "https://wttr.in/{city}?format=j1&lang=ru"
 
 
-async def get_weather(city: str) -> dict:
-    """Получает структурированные текущие погодные данные из wttr.in."""
+async def get_weather(city: str) -> str:
+    """Получает текущую погоду из wttr.in и возвращает JSON-строку."""
     city = (city or "").strip()
     if not city:
         raise ValueError("City is required")
@@ -38,10 +40,10 @@ async def get_weather(city: str) -> dict:
         if not current:
             raise RuntimeError("Weather provider returned no current conditions")
 
-        description_items = current.get("weatherDesc") or []
+        descriptions = current.get("weatherDesc") or []
         description = ""
-        if description_items:
-            description = str(description_items[0].get("value") or "").strip()
+        if descriptions:
+            description = str(descriptions[0].get("value") or "").strip()
 
         def to_float(value):
             try:
@@ -55,17 +57,19 @@ async def get_weather(city: str) -> dict:
             except (TypeError, ValueError):
                 return None
 
-        # wttr.in отдаёт скорость ветра в км/ч; API Jarvis использует м/с.
         wind_kmh = to_float(current.get("windspeedKmph"))
         wind_ms = round(wind_kmh / 3.6, 1) if wind_kmh is not None else None
 
-        return {
-            "temp": to_float(current.get("temp_C")),
-            "description": description or "Нет данных",
-            "humidity": to_int(current.get("humidity")),
-            "wind_speed": wind_ms,
-            "pressure": to_int(current.get("pressure")),
-        }
+        return json.dumps(
+            {
+                "temp": to_float(current.get("temp_C")),
+                "description": description or "Нет данных",
+                "humidity": to_int(current.get("humidity")),
+                "wind_speed": wind_ms,
+                "pressure": to_int(current.get("pressure")),
+            },
+            ensure_ascii=False,
+        )
     except Exception as exc:
         error(f"Ошибка получения погоды для {city}: {exc}")
         raise
