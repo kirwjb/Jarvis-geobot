@@ -59,13 +59,20 @@ function saveState() {
 }
 
 async function apiFetch(path, options = {}) {
+  const initData = tg?.initData || '';
+  const headers = {
+    Accept: 'application/json',
+    ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+    ...(options.headers || {})
+  };
+
+  if (initData) {
+    headers.Authorization = `tma ${initData}`;
+  }
+
   const response = await fetch(`${API}${path}`, {
     ...options,
-    headers: {
-      Accept: 'application/json',
-      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
-      ...(options.headers || {})
-    }
+    headers
   });
 
   let data = null;
@@ -453,8 +460,7 @@ function renderFeed() {
 }
 
 async function toggleFav(id) {
-  const userId = getTelegramUserId();
-  if (!userId) {
+  if (!getTelegramUserId()) {
     toast('Откройте приложение через Telegram для избранного');
     return;
   }
@@ -462,7 +468,7 @@ async function toggleFav(id) {
   try {
     const data = await apiFetch('/favorites/toggle', {
       method: 'POST',
-      body: JSON.stringify({ user_id: userId, poi_id: String(id) })
+      body: JSON.stringify({ poi_id: String(id) })
     });
 
     if (data?.favorited) S.favs.add(String(id));
@@ -479,11 +485,10 @@ async function toggleFav(id) {
 }
 
 async function loadFavorites() {
-  const userId = getTelegramUserId();
-  if (!userId) return;
+  if (!getTelegramUserId()) return;
 
   try {
-    const data = await apiFetch(`/favorites/${userId}`);
+    const data = await apiFetch('/favorites/me');
     S.favs = new Set((data?.favorites || []).map(item => String(item.place_id)));
     saveState();
   } catch (error) {
