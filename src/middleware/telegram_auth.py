@@ -3,6 +3,7 @@
 import hashlib
 import hmac
 import json
+import os
 import time
 from typing import Any
 from urllib.parse import parse_qsl
@@ -79,17 +80,32 @@ def validate_init_data(
 
 
 class TelegramAuthMiddleware(BaseHTTPMiddleware):
-    """Protect /api endpoints with Telegram Mini App initData."""
+    """Optionally protect /api endpoints with Telegram Mini App initData."""
 
-    def __init__(self, app, bot_token: str, max_age: int = 86400):
+    def __init__(
+        self,
+        app,
+        bot_token: str,
+        max_age: int = 86400,
+        enabled: bool | None = None,
+    ):
         super().__init__(app)
         self.bot_token = bot_token
         self.max_age = max_age
+        self.enabled = (
+            os.getenv("TELEGRAM_AUTH_REQUIRED", "0").strip().lower()
+            in {"1", "true", "yes", "on"}
+            if enabled is None
+            else enabled
+        )
 
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
 
-        # Health checks and the auth bootstrap endpoint must remain reachable
+        if not self.enabled:
+            return await call_next(request)
+
+        # Health checks and the auth bootstrap endpoint remain reachable
         # without an already-established authenticated request.
         if (
             not path.startswith("/api/")
