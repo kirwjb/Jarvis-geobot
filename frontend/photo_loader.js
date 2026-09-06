@@ -5,8 +5,20 @@
 
   async function loadPhoto(card) {
     const id = card?.dataset?.poiId;
-    const img = card?.querySelector('.poi-img img');
-    if (!id || !img || loaded.has(id) || pending.has(id)) return;
+    if (!id || loaded.has(id) || pending.has(id)) return;
+
+    const box = card.querySelector('.poi-img');
+    if (!box) return;
+
+    let img = box.querySelector('img');
+    if (!img) {
+      img = document.createElement('img');
+      img.alt = card.querySelector('.poi-name')?.textContent?.trim() || '';
+      img.loading = 'lazy';
+      img.className = 'poi-lazy-photo';
+      img.style.display = 'none';
+      box.appendChild(img);
+    }
 
     pending.add(id);
     try {
@@ -23,6 +35,11 @@
       const photo = data?.photo;
       const url = photo?.local_url_medium || photo?.local_url_thumb || photo?.original_url;
       if (!url) return;
+
+      img.onload = () => {
+        img.style.display = '';
+        box.querySelector('svg')?.remove();
+      };
       img.src = url;
       loaded.add(id);
     } catch (error) {
