@@ -14,6 +14,7 @@ from src.config import TOKEN
 from src.database.session_manager import redis_client
 from src.middleware.security import SecurityMiddleware
 from src.handlers.admin import register_admin_handlers
+from src.handlers.cache_admin import register_cache_admin_handler
 from src.utils.languages import get_text
 from src.utils.utils import log, error
 
@@ -24,8 +25,6 @@ MEDIA_DIR = Path(__file__).resolve().parent / "media"
 INDEX_FILE = WEB_DIR / "index.html"
 MEDIA_DIR.mkdir(parents=True, exist_ok=True)
 
-# Serve the Telegram Mini App at / and media assets at /media.
-# The API routes remain available under /api/*.
 fastapi_app.mount(
     "/media",
     StaticFiles(directory=str(MEDIA_DIR)),
@@ -47,6 +46,7 @@ bot.setup_middleware(security_mw)
 
 async def init_bot():
     await register_admin_handlers(bot, redis_client)
+    await register_cache_admin_handler(bot)
     log(get_text("bot_started"))
 
 
