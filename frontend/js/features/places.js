@@ -13,32 +13,21 @@ export function poiCardMarkup(p){
 }
 function render(){const feed=$('#feed');if(!feed)return;feed.innerHTML=state.pois.length?state.pois.map(poiCardMarkup).join(''):`<div class="empty">${esc(t('nothing'))}</div>`;const box=$('#poi-pagination');if(box)box.innerHTML=(state.pois.length||hasNext)?`<button class="poi-page-btn" type="button" data-action="page-prev" data-page="${page-1}" ${page===0||loading?'disabled':''}>←</button><span class="poi-page-label">${esc(t('page'))} ${page+1}</span><button class="poi-page-btn" type="button" data-action="page-next" data-page="${page+1}" ${!hasNext||loading?'disabled':''}>→</button>`:'';}
 const loadingMarkup=()=>`<div class="jarvis-loading"><div class="jarvis-spinner"></div><div class="jarvis-loading-title">${esc(t('searching'))}</div></div>`;
-export async function loadPlaces(){go('cards');page=0;cache.clear();key=queryKey();state.pois=[];$('#feed').innerHTML=loadingMarkup();$('#cards-title').textContent=state.city||t('places');await loadPage(0);}
-
-function filterDbPlaces(items){
- const wanted=[...state.tags].map(x=>String(x).toLowerCase());
- if(!wanted.length)return items;
- return items.filter(p=>wanted.some(tag=>String(p.category||'').toLowerCase()===tag||String(p.category||'').toLowerCase().includes(tag)||tag==='architecture'&&['castle','church','monument','manor','gallery','ruins'].includes(p.category)||tag==='nature'&&['park','viewpoint','ruins'].includes(p.category)));
-}
+export async function loadPlaces(){go('cards');page=0;cache.clear();key=queryKey();state.pois=[];hasNext=false;$('#feed').innerHTML=loadingMarkup();$('#cards-title').textContent=state.city||t('places');await loadPage(0);}
 
 export async function loadPage(next){
  if(next<0||loading)return;
- const k=queryKey();if(k!==key){cache.clear();key=k;page=0}
- if(cache.has(next)){const c=cache.get(next);page=next;state.pois=c.places;hasNext=c.hasNext;render();return}
- loading=true;$('#feed').innerHTML=loadingMarkup();
+ const k=queryKey();
+ if(k!==key){cache.clear();key=k;page=0;hasNext=false;if(next!==0)next=0;}
+ if(cache.has(next)){const c=cache.get(next);page=next;state.pois=c.places;hasNext=c.hasNext;render();return;}
+ loading=true;render();
  try{
-   let pois=[];
-   // 1) Search the application database by city first. This also tolerates old region naming.
-   if(next===0&&state.city){
-     const db=await request(`/pois?city=${encodeURIComponent(state.city)}&limit=30&offset=0`);
-     pois=filterDbPlaces(Array.isArray(db?.pois)?db.pois:[]);
-   }
-   // 2) If DB has no matching attractions, ask the POI query endpoint to hydrate from OSM and cache them.
-   if(!pois.length){
-     const d=await request('/pois/query',{method:'POST',body:JSON.stringify({region:state.region,city:state.city,tags:[...state.tags],limit:PAGE+1,offset:next*PAGE})});
-     pois=Array.isArray(d?.pois)?d.pois:[];
-   }
-   const c={places:pois.slice(0,PAGE),hasNext:pois.length>PAGE};cache.set(next,c);page=next;state.pois=c.places;hasNext=c.hasNext;render();
+   // Always use the same backend query for every page. It returns PAGE+1
+   // records so the extra record is used only to determine whether a next page exists.
+   const d=await request('/pois/query',{method:'POST',body:JSON.stringify({region:state.region,city:state.city,tags:[...state.tags],limit:PAGE+1,offset:next*PAGE})});
+   const pois=Array.isArray(d?.pois)?d.pois:[];
+   const c={places:pois.slice(0,PAGE),hasNext:pois.length>PAGE};
+   cache.set(next,c);page=next;state.pois=c.places;hasNext=c.hasNext;render();
  }catch(e){toast(`${t('places_failed')}: ${e.message}`)}finally{loading=false;render();}
 }
 
