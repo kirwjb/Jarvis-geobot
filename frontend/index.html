@@ -11,86 +11,31 @@
 </head>
 <body>
   <div class="top-controls" id="top-controls">
-    <button class="top-control theme-control" id="theme-toggle" type="button" aria-label="Переключить тему" title="Переключить тему" onclick="toggleTheme()">
-      <span class="theme-icon" id="theme-icon" aria-hidden="true">☀</span>
-    </button>
-    <button class="top-control language-control" id="language-toggle" type="button" aria-label="Язык" title="Язык" onclick="toggleLanguage()">
-      <span class="language-flag" id="language-flag" aria-hidden="true">🇧🇾</span>
-      <span class="language-code" id="language-code">BY</span>
-    </button>
+    <button class="top-control theme-control" id="theme-toggle" type="button" aria-label="Переключить тему" title="Переключить тему" onclick="toggleTheme()"><span class="theme-icon" id="theme-icon" aria-hidden="true">☀</span></button>
+    <button class="top-control language-control" id="language-toggle" type="button" aria-label="Язык" title="Язык" onclick="toggleLanguage()"><span class="language-flag" id="language-flag" aria-hidden="true">🇧🇾</span><span class="language-code" id="language-code">BY</span></button>
   </div>
 
-  <div class="screen active" id="splash">
-    <div class="splash-wrap">
-      <img class="logo" src="/logo.svg?v=2" alt="JARVIS" style="width:350px!important;height:350px!important;max-width:350px!important;max-height:350px!important;object-fit:contain;">
-      <h1>Путешествуй по Беларуси</h1>
-      <p>Достопримечательности, маршруты и погода</p>
-      <button class="btn-main" type="button" onclick="go('regions')">Начать путешествие</button>
-    </div>
-  </div>
+  <div class="screen active" id="splash"><div class="splash-wrap"><img class="logo" src="/logo.svg?v=2" alt="JARVIS" style="width:350px!important;height:350px!important;max-width:350px!important;max-height:350px!important;object-fit:contain;"><h1>Путешествуй по Беларуси</h1><p>Достопримечательности, маршруты и погода</p><button class="btn-main" type="button" onclick="go('regions')">Начать путешествие</button></div></div>
 
-  <div class="screen" id="regions">
-    <div class="topbar"><h2>Выберите регион</h2><span class="step">1/4</span></div>
-    <input class="search" type="search" placeholder="Поиск региона..." autocomplete="off" oninput="filterRegions(this.value)">
-    <div class="grid" id="regions-grid"></div>
-  </div>
+  <div class="screen" id="regions"><div class="topbar"><h2>Выберите регион</h2><span class="step">1/4</span></div><input class="search" type="search" placeholder="Поиск региона..." autocomplete="off" oninput="filterRegions(this.value)"><div class="grid" id="regions-grid"></div></div>
 
-  <div class="screen" id="cities">
-    <button class="back" type="button" onclick="go('regions')">← Назад</button>
-    <div class="topbar"><h2 id="region-title">Область</h2><span class="step">2/4</span></div>
-    <input class="search" type="search" placeholder="Поиск города..." autocomplete="off" oninput="filterCities(this.value)">
-    <div class="grid" id="cities-grid"></div>
-  </div>
+  <div class="screen" id="cities"><button class="back" type="button" onclick="go('regions')">← Назад</button><div class="topbar"><h2 id="region-title">Область</h2><span class="step">2/4</span></div><input class="search" type="search" placeholder="Поиск города..." autocomplete="off" oninput="filterCities(this.value)"><div class="grid" id="cities-grid"></div></div>
 
-  <div class="screen" id="weather">
-    <div class="topbar"><h2>Погода</h2></div>
-    <div id="weather-empty" class="weather-empty">
-      <div class="weather-empty-icon">☀️</div>
-      <h3>Погода по городу</h3>
-      <p>Сначала выберите город в разделе «Путешествия»</p>
-      <button class="btn-main weather-go-btn" type="button" onclick="go('regions')">Выбрать город</button>
-    </div>
-    <div id="weather-box" style="display:none"></div>
-  </div>
+  <div class="screen" id="weather"><div class="topbar"><h2>Погода</h2></div><div id="weather-empty" class="weather-empty"><div class="weather-empty-icon">☀️</div><h3>Погода по городу</h3><p>Сначала выберите город в разделе «Путешествия»</p><button class="btn-main weather-go-btn" type="button" onclick="go('regions')">Выбрать город</button></div><div id="weather-box" style="display:none"></div></div>
 
-  <div class="screen" id="tags">
-    <button class="back" type="button" onclick="go('cities')">← Назад</button>
-    <div class="topbar"><h2>Интересы</h2><span class="step">3/4</span></div>
-    <p class="hint">Можно выбрать несколько категорий</p>
-    <div class="tags" id="tags-list"></div>
-    <button class="btn-main" id="btn-tags" type="button" onclick="loadCards()" disabled>Показать места</button>
-  </div>
+  <div class="screen" id="tags"><button class="back" type="button" onclick="go('cities')">← Назад</button><div class="topbar"><h2>Интересы</h2><span class="step">3/4</span></div><p class="hint">Можно выбрать несколько категорий</p><div class="tags" id="tags-list"></div><button class="btn-main" id="btn-tags" type="button" onclick="loadCards()" disabled>Показать места</button></div>
 
-  <div class="screen" id="cards">
-    <button class="back" type="button" onclick="go('tags')">← Назад</button>
-    <div class="topbar"><h2 id="cards-title">Места</h2></div>
-    <div class="feed" id="feed"></div>
-    <div id="poi-pagination" class="poi-pagination"></div>
-  </div>
+  <div class="screen" id="cards"><button class="back" type="button" onclick="go('tags')">← Назад</button><div class="topbar"><h2 id="cards-title">Места</h2></div><div class="feed" id="feed"></div><div id="poi-pagination" class="poi-pagination"></div></div>
 
-  <div class="screen" id="route">
-    <button class="back" type="button" onclick="goBackFromRoute()">← Назад</button>
-    <div class="topbar"><h2>Мой маршрут</h2></div>
-    <div id="route-list"></div>
-    <button class="btn-route" id="btn-build" type="button" onclick="buildRoute()" disabled>Построить маршрут</button>
-  </div>
+  <div class="screen" id="route"><button class="back" type="button" onclick="goBackFromRoute()">← Назад</button><div class="topbar"><h2>Мой маршрут</h2></div><div id="route-list"></div><button class="btn-route" id="btn-build" type="button" onclick="buildRoute()" disabled>Построить маршрут</button></div>
 
-  <button class="fab hidden" id="fab" type="button" onclick="go('route')">
-    🗺 <span>Маршрут</span><span id="fab-count">0</span>
-  </button>
+  <button class="fab hidden" id="fab" type="button" onclick="go('route')">🗺 <span>Маршрут</span><span id="fab-count">0</span></button>
 
-  <nav class="bottom-nav" id="bottom-nav" aria-label="Основная навигация">
-    <button class="bottom-nav-item active" type="button" data-tab="travel" onclick="bottomNavigate('travel')">
-      <span class="bottom-nav-icon" aria-hidden="true">🧭</span><span class="bottom-nav-label">Путешествия</span>
-    </button>
-    <button class="bottom-nav-item" type="button" data-tab="weather" onclick="bottomNavigate('weather')">
-      <span class="bottom-nav-icon" aria-hidden="true">☀️</span><span class="bottom-nav-label">Погода</span>
-    </button>
-  </nav>
+  <nav class="bottom-nav" id="bottom-nav" aria-label="Основная навигация"><button class="bottom-nav-item active" type="button" data-tab="travel" onclick="bottomNavigate('travel')"><span class="bottom-nav-icon" aria-hidden="true">🧭</span><span class="bottom-nav-label">Путешествия</span></button><button class="bottom-nav-item" type="button" data-tab="weather" onclick="bottomNavigate('weather')"><span class="bottom-nav-icon" aria-hidden="true">☀️</span><span class="bottom-nav-label">Погода</span></button></nav>
 
   <div class="toast" id="toast"></div>
-
   <script src="/app.js"></script>
   <script src="/enhancements.js"></script>
+  <script src="/feed_pagination.js"></script>
 </body>
 </html>
