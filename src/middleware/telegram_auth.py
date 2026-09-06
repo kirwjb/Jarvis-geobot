@@ -80,7 +80,7 @@ def validate_init_data(
 
 
 class TelegramAuthMiddleware(BaseHTTPMiddleware):
-    """Optionally protect /api endpoints with Telegram Mini App initData."""
+    """Protect /api endpoints with Telegram Mini App initData."""
 
     def __init__(
         self,
@@ -103,10 +103,22 @@ class TelegramAuthMiddleware(BaseHTTPMiddleware):
         path = request.url.path
 
         if not self.enabled:
+            # Temporary compatibility for the current frontend until it starts
+            # sending Authorization: tma <initData>.
+            if path == "/api/favorites/toggle" and request.method == "POST":
+                try:
+                    payload = json.loads((await request.body()).decode("utf-8"))
+                    if payload.get("user_id"):
+                        request.state.telegram_user_id = int(payload["user_id"])
+                except (json.JSONDecodeError, TypeError, ValueError):
+                    pass
+            elif path.startswith("/api/favorites/"):
+                legacy_user_id = path.rsplit("/", 1)[-1]
+                if legacy_user_id.isdigit():
+                    request.state.telegram_user_id = int(legacy_user_id)
+                    request.scope["path"] = "/api/favorites/me"
             return await call_next(request)
 
-        # Health checks and the auth bootstrap endpoint remain reachable
-        # without an already-established authenticated request.
         if (
             not path.startswith("/api/")
             or path == "/api/auth/telegram"
@@ -120,10 +132,9 @@ class TelegramAuthMiddleware(BaseHTTPMiddleware):
                 content={"detail": "Telegram authentication required"},
             )
 
-        init_data = authorization[4:].strip()
         try:
             user = validate_init_data(
-                init_data,
+                authorization[4:].strip(),
                 self.bot_token,
                 max_age=self.max_age,
             )
