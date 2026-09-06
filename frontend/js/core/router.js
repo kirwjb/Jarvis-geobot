@@ -19,6 +19,8 @@ export function initTelegramBackButton() {
     const map = {regions:'splash', cities:'regions', tags:'cities', cards:'tags'};
     if (state.screen === 'weather') return go(state.mode === 'weather' ? 'cities' : 'tags');
     if (state.screen === 'route') return go(state.pois.length ? 'cards' : 'tags');
+    if (state.screen === 'favorites') return go('cards');
+    if (state.screen === 'groups') return go('cards');
     if (map[state.screen]) go(map[state.screen]);
   });
 }
@@ -31,6 +33,17 @@ export function bindNavigation() {
   $('#bottom-nav')?.addEventListener('click', e => {
     const item = e.target.closest('.bottom-nav-item');
     if (!item) return;
+
+    // The POI feed is a focused screen. Once it is open, bottom-tab
+    // navigation must not destroy it. Leaving the feed is only possible
+    // through the Back button (Telegram BackButton or the screen's Back UI).
+    if (state.screen === 'cards') {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      haptic();
+      return;
+    }
+
     const tab = item.dataset.tab;
     if (tab === 'travel') { state.mode='travel'; setTab(tab); go('regions'); }
     if (tab === 'weather') { state.mode='weather'; setTab(tab); go(state.city && state.region ? 'weather' : 'regions'); }
