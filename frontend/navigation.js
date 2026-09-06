@@ -1,5 +1,24 @@
 (() => {
   const nav = document.getElementById('bottom-nav');
+
+  // The splash CTA gets its own real event listener as a fallback to the inline handler.
+  // This also makes the button reliable inside Telegram WebView after cached assets update.
+  const startButton = document.getElementById('start-travel');
+  if (startButton) {
+    startButton.addEventListener('click', event => {
+      event.preventDefault();
+      try {
+        window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('light');
+      } catch (_) {}
+      if (typeof window.go === 'function') {
+        window.go('regions');
+      } else {
+        document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
+        document.getElementById('regions')?.classList.add('active');
+      }
+    });
+  }
+
   if (!nav) return;
 
   nav.insertAdjacentHTML('beforeend', `
@@ -22,7 +41,7 @@
   document.body.insertBefore(groupScreen, document.getElementById('route'));
 
   const style = document.createElement('style');
-  style.textContent = '#favorites-list{display:grid;gap:12px;padding-bottom:30px}.favorite-item{padding:16px;border:1px solid var(--border);border-radius:18px;background:var(--panel)}.favorite-item h3{margin:0 0 7px}.favorite-item p{margin:0;color:var(--muted)}.bottom-nav-item{cursor:pointer;touch-action:manipulation}';
+  style.textContent = '#favorites-list{display:grid;gap:12px;padding-bottom:30px}.favorite-item{padding:16px;border:1px solid var(--border);border-radius:18px;background:var(--panel)}.favorite-item h3{margin:0 0 7px}.favorite-item p{margin:0;color:var(--muted)}.bottom-nav-item{cursor:pointer;touch-action:manipulation}.splash-wrap,.splash-wrap *{pointer-events:auto}.splash-wrap .btn-main{position:relative;z-index:2;touch-action:manipulation}';
   document.head.appendChild(style);
 
   function activate(tab) {
