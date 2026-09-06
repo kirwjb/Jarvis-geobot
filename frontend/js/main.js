@@ -1,10 +1,10 @@
 import { tg, state, persist } from './core/state.js';
-import { $, haptic } from './ui/helpers.js';
+import { $ } from './ui/helpers.js';
 import { applyTheme, toggleTheme } from './ui/theme.js';
 import { applyLanguage, toggleLanguage } from './ui/language.js';
 import { go, initTelegramBackButton, bindNavigation } from './core/router.js';
 import { loadRegions, pickRegion, pickCity, toggleTag, filterRegions, filterCities, renderTags, startPlaces } from './features/travel.js';
-import { loadWeather } from './features/weather.js';
+import { loadWeather, renderWeather } from './features/weather.js';
 import { loadFavorites, toggleFavorite, toggleRoute, openDetail, loadPage, updateFab } from './features/places.js';
 import { renderRoute, removeRoute, buildRoute, copyRoute, openRoute } from './features/route.js';
 import { installExtraNavigation } from './features/navigation-extra.js';
@@ -24,6 +24,7 @@ function handleClick(event){
  if(action==='tag'){toggleTag(el.dataset.id);return}
  if(action==='show-places'){startPlaces();return}
  if(action==='choose-city'){state.mode='weather';go('regions');return}
+ if(action==='weather-refresh'){loadWeather();return}
  if(action==='page-prev'||action==='page-next'){loadPage(Number(el.dataset.page));return}
  if(action==='favorite'){event.stopPropagation();toggleFavorite(el.dataset.id);return}
  if(action==='route'){event.stopPropagation();toggleRoute(el.dataset.id);return}
@@ -40,13 +41,14 @@ function bind(){
  document.addEventListener('input',handleInput);
  $('#fab')?.addEventListener('click',()=>{go('route');renderRoute()});
  $('#bottom-nav')?.addEventListener('click',e=>{if(e.target.closest('[data-tab="weather"]')&&state.city&&state.region)loadWeather();});
+ window.addEventListener('jarvis:language',()=>{renderTags();if(state.weather)renderWeather();loadRegions();});
+ window.addEventListener('jarvis:favorites-changed',()=>loadFavorites());
  bindNavigation();initTelegramBackButton();installExtraNavigation();
 }
 async function init(){
  bind();applyTheme(localStorage.getItem('jarvis-theme')||'dark',false);applyLanguage(localStorage.getItem('jarvis-language')||'RU',false);renderTags();updateFab();go('splash',{save:false});
  await Promise.all([loadRegions(),loadFavorites()]);
  if(state.region){try{const {request}=await import('./core/api.js');state.cities=await request(`/cities/${encodeURIComponent(state.region)}`)||[];}catch(_) {}}
- // Never restore an old screen: saved data is restored, navigation always starts predictably at splash.
  persist();
 }
 init().catch(error=>console.error('JARVIS init failed',error));
