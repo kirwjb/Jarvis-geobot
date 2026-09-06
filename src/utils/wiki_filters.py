@@ -31,9 +31,12 @@ BAD_DESCRIPTION_WORDS = (
     "флаг:",
 )
 
+# Brest is ambiguous: there is a large city in Belarus and a city in France.
+# Keep the bare city forms for filename scoring, but do not treat a Commons
+# category named simply "Brest" as proof that a file belongs to Belarus.
 CITY_SYNONYMS = {
     "минск": ("минск", "мінск", "minsk"),
-    "брест": ("брест", "брэст", "brest"),
+    "брест": ("беларусь", "беларус", "brest belarus", "brest region", "брестская область", "беларусь брест"),
     "гродно": ("гродно", "гродна", "grodno", "hrodna"),
     "гомель": ("гомель", "homiel", "gomel"),
     "витебск": ("витебск", "віцебск", "vitebsk"),
@@ -115,6 +118,7 @@ def city_variants(city: str) -> list[str]:
     if not normalized:
         return []
 
+    # Always keep the canonical city name for filename scoring.
     variants = {normalized}
     transliterated = translit(normalized)
     if transliterated:
