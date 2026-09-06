@@ -1,20 +1,26 @@
-#Telegram Bot API
+# Telegram Bot API
 pyTelegramBotAPI==4.18.0
 
-#Asynchronous HTTP Framework
+# Web API
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+
+# Asynchronous HTTP Framework
 aiohttp==3.11.11
 
-#Database & ORM
+# Database & ORM
 SQLAlchemy==2.0.31
 asyncpg==0.29.0
 
-#Redis & Session Management
+# Alembic migrations
+alembic==1.14.0
+psycopg2-binary==2.9.10
+
+# Redis & Session Management
 redis==5.0.7
 
-#Environment Configuration
+# Environment Configuration
 python-dotenv==1.0.1
 
-#Frontend mini-app
-node.js == v24.18.0
-npm == v11.16.0
-
+# Frontend dependencies (Node.js/npm are managed separately, not by pip)
