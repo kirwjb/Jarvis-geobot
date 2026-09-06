@@ -480,15 +480,28 @@ async def get_weather_endpoint(city: str):
     if cached:
         return WeatherResponse(
             city=city,
+            temp=cached.get("temp"),
             description=cached.get("description", ""),
+            humidity=cached.get("humidity"),
+            wind_speed=cached.get("wind_speed"),
+            pressure=cached.get("pressure"),
             cached=True,
         )
     try:
-        weather_text = await get_weather(city)
-        await set_weather_cache(city, {"description": weather_text})
+        weather_payload = await get_weather(city)
+        weather = json.loads(weather_payload)
+
+        if not isinstance(weather, dict):
+            raise ValueError("Weather provider returned invalid payload")
+
+        await set_weather_cache(city, weather)
         return WeatherResponse(
             city=city,
-            description=weather_text,
+            temp=weather.get("temp"),
+            description=weather.get("description", ""),
+            humidity=weather.get("humidity"),
+            wind_speed=weather.get("wind_speed"),
+            pressure=weather.get("pressure"),
             cached=False,
         )
     except Exception as exc:
