@@ -6,14 +6,19 @@ on:
 
 jobs:
   refactor:
-    if: github.event.head_commit.message != 'refactor(wiki): move pure filters to utils'
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
       - name: Move pure Wikimedia filters to utils
+        env:
+          HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
+          if [ "$HEAD_COMMIT_MESSAGE" = "refactor(wiki): move pure filters to utils" ]; then
+            echo "Refactor already applied."
+            exit 0
+          fi
           python - <<'PY'
           import ast
           from pathlib import Path
