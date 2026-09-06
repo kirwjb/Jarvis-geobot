@@ -5,7 +5,7 @@ import { applyLanguage, toggleLanguage } from './ui/language.js';
 import { go, initTelegramBackButton, bindNavigation } from './core/router.js';
 import { loadRegions, pickRegion, pickCity, toggleTag, filterRegions, filterCities, renderTags, startPlaces } from './features/travel.js';
 import { loadWeather, renderWeather } from './features/weather.js';
-import { loadFavorites, toggleFavorite, toggleRoute, openDetail, loadPage, updateFab } from './features/places.js';
+import { loadFavorites, toggleFavorite, toggleRoute, openDetail, loadPage, updateFab } from './features/places.js?v=20260906-1';
 import { renderRoute, removeRoute, buildRoute, copyRoute, openRoute } from './features/route.js';
 import { installExtraNavigation } from './features/navigation-extra.js';
 
