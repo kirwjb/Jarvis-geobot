@@ -22,10 +22,12 @@
 
 | Places | Weather | Route |
 |:---:|:---:|:---:|
-| `<!-- screenshot -->` | `<!-- screenshot -->` | `<!-- screenshot -->` |
-| Add screenshot | Add screenshot | Add screenshot |
+| `<img width="635" height="1280" alt="1000007252" src="https://github.com/user-attachments/assets/e542e4f3-277a-41f3-96fb-7468a1670159" />
+` | `<img width="672" height="1280" alt="1000007246" src="https://github.com/user-attachments/assets/da32c2aa-8e8e-4346-8cfe-2c2f9aaa6e86" />
+` | `<img width="671" height="1280" alt="1000007245" src="https://github.com/user-attachments/assets/2cb92f73-3cb6-4ae1-81cd-af87aab910f2" />
+` |
+| Check weather | Save places| Create routes|
 
-> Replace the placeholders above with screenshots when they are ready.
 
 ---
 
