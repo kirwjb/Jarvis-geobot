@@ -86,9 +86,13 @@ async def get_photos_map(session,place_ids:list[str])->dict[str,PlacePhoto]:
 async def ensure_place_photo(session,place:Place)->PlacePhoto|None:
     result=await session.execute(select(PlacePhoto).where(PlacePhoto.place_id==place.place_id).order_by(PlacePhoto.id.asc()).limit(1));photo=result.scalar_one_or_none()
     if photo:return photo
-    photo_data=await get_wikimedia_photo(name=place.name,city=place.city,place_id=place.place_id,lat=place.lat,lon=place.lon,category=place.category)
-    if not photo_data:return None
-    return await photo_repo.save_place_photo(session,place_id=place.place_id,source=photo_data["source"],original_url=photo_data["original_url"],local_url_thumb=photo_data.get("local_url_thumb"),local_url_medium=photo_data.get("local_url_medium"),author=photo_data.get("author"),license=photo_data.get("license"))
+    try:
+        photo_data=await get_wikimedia_photo(name=place.name,city=place.city,place_id=place.place_id,lat=place.lat,lon=place.lon,category=place.category)
+        if not photo_data:return None
+        return await photo_repo.save_place_photo(session,place_id=place.place_id,source=photo_data["source"],original_url=photo_data["original_url"],local_url_thumb=photo_data.get("local_url_thumb"),local_url_medium=photo_data.get("local_url_medium"),author=photo_data.get("author"),license=photo_data.get("license"))
+    except Exception as exc:
+        error(f"Photo hydration failed for {place.place_id}: {exc}")
+        return None
 async def get_places_from_db(session,*,region:Optional[str]=None,city:Optional[str]=None,category:Optional[str|list[str]|set[str]]=None,offset:int=0,limit:int=MAX_POI_LIMIT)->list[Place]:
     query=select(Place)
     if region:query=query.where(Place.region==region)
@@ -129,7 +133,7 @@ async def get_cities(region_id:str):
     for name,cities in REGIONS.items():
         if normalize_region_id(name)==region_id:return [CityResponse(name=c,region=name) for c in cities]
     raise HTTPException(status_code=404,detail=get_text("choose_city_empty"))
-@app.get("/api/weather/{city}",response_model=WeatherResponse)
+@app.get("/api/weather/{city}")
 async def get_weather_endpoint(city:str):
     cached=await check_weather_cache(city)
     if cached:return WeatherResponse(city=city,temp=cached.get("temp"),description=cached.get("description",""),humidity=cached.get("humidity"),wind_speed=cached.get("wind_speed"),pressure=cached.get("pressure"),cached=True)
@@ -142,13 +146,20 @@ async def query_pois(query:POIQuery):
     if not query.city:raise HTTPException(status_code=400,detail="City required")
     limit,offset=normalize_limit(query.limit),normalize_offset(query.offset);cats=expand_poi_tags(query.tags) if query.tags else None
     async with AsyncSessionLocal() as session:
+        # Prefer the selected region, but fall back to city-only lookup because
+        # older cached records can contain a different spelling of the region.
         places=await get_places_from_db(session,region=query.region,city=query.city,category=cats,offset=offset,limit=limit)
+        if not places:
+            places=await get_places_from_db(session,city=query.city,category=cats,offset=offset,limit=limit)
+        # Hydrate the city from OSM only when the first page has no DB data.
         if not places and offset==0:
             osm=await get_attractions_osm(query.city,limit=100)
             if osm:
                 await upsert_osm_places(session,osm,city=query.city,region=query.region);await session.commit()
                 places=await get_places_from_db(session,region=query.region,city=query.city,category=cats,offset=offset,limit=limit)
-        for place in places:await ensure_place_photo(session,place)
+        # Every returned card gets a photo lookup when the DB has no cached photo.
+        for place in places:
+            await ensure_place_photo(session,place)
         photos=await get_photos_map(session,[p.place_id for p in places]);pois=[place_to_dict(p,photos.get(p.place_id)) for p in places]
         await session.commit();return {"count":len(pois),"region":query.region,"city":query.city,"tags":query.tags,"offset":offset,"limit":limit,"pois":pois}
 
@@ -156,13 +167,15 @@ async def query_pois(query:POIQuery):
 async def get_all_pois(region:Optional[str]=None,city:Optional[str]=None,category:Optional[str]=None,offset:int=0,limit:int=30):
     limit,offset=normalize_limit(limit),normalize_offset(offset)
     async with AsyncSessionLocal() as session:
-        places=await get_places_from_db(session,region=region,city=city,category=normalize_category(category) if category else None,offset=offset,limit=limit);photos=await get_photos_map(session,[p.place_id for p in places]);return {"pois":[place_to_dict(p,photos.get(p.place_id)) for p in places],"count":len(places),"offset":offset,"limit":limit}
+        places=await get_places_from_db(session,region=region,city=city,category=normalize_category(category) if category else None,offset=offset,limit=limit)
+        for place in places:await ensure_place_photo(session,place)
+        photos=await get_photos_map(session,[p.place_id for p in places]);await session.commit();return {"pois":[place_to_dict(p,photos.get(p.place_id)) for p in places],"count":len(places),"offset":offset,"limit":limit}
 @app.get("/api/pois/{place_id}",response_model=POIDetail)
 async def get_poi_detail(place_id:str):
     async with AsyncSessionLocal() as session:
         place=await get_place_by_id(session,place_id)
         if place is None:raise HTTPException(status_code=404,detail="Place not found")
-        result=await session.execute(select(PlacePhoto).where(PlacePhoto.place_id==place_id).order_by(PlacePhoto.id.asc()).limit(1));photo=result.scalar_one_or_none();return POIDetail(**place_to_dict(place,photo),photo=photo_to_dict(photo))
+        photo=await ensure_place_photo(session,place);await session.commit();return POIDetail(**place_to_dict(place,photo),photo=photo_to_dict(photo))
 @app.get("/api/pois/{place_id}/photos")
 async def get_poi_photos(place_id:str):
     async with AsyncSessionLocal() as session:
