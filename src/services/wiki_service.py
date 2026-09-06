@@ -21,6 +21,17 @@ from PIL import Image
 
 from src.config import WIKIMEDIA_API_URL
 from src.utils.utils import log, error
+from src.utils.wiki_filters import (
+    TYPE_QUERY_WORDS,
+    city_variants,
+    distance_score,
+    is_in_belarus,
+    is_valid_photo,
+    match_score,
+    normalize_text,
+    text_forms,
+    translit,
+)
 
 
 WIKIMEDIA_API = (
@@ -54,158 +65,25 @@ SIZES = {
 # к конкретному объекту.
 # ---------------------------------------------------------------------------
 
-BELARUS_BBOX = {
-    "min_lat": 51.25,
-    "max_lat": 56.17,
-    "min_lon": 23.17,
-    "max_lon": 32.77,
-}
 
 
 # ---------------------------------------------------------------------------
 # Явно плохие типы изображений
 # ---------------------------------------------------------------------------
 
-BAD_EXTENSIONS = (
-    ".svg",
-    ".pdf",
-    ".djvu",
-    ".tiff",
-    ".tif",
-)
 
-BAD_DESCRIPTION_WORDS = (
-    "map of",
-    "locator map",
-    "location map",
-    "map showing",
-    "карта ",
-    "карта:",
-    "схема ",
-    "схема:",
-    "план ",
-    "план:",
-    "герб ",
-    "герб:",
-    "coat of arms",
-    "flag of",
-    "флаг ",
-    "флаг:",
-)
 
 
 # ---------------------------------------------------------------------------
 # Города и синонимы
 # ---------------------------------------------------------------------------
 
-CITY_SYNONYMS = {
-    "минск": (
-        "минск",
-        "мінск",
-        "minsk",
-        "minsk",
-    ),
-    "брест": (
-        "брест",
-        "брэст",
-        "brest",
-    ),
-    "гродно": (
-        "гродно",
-        "гродна",
-        "grodno",
-        "hrodna",
-    ),
-    "гомель": (
-        "гомель",
-        "homiel",
-        "gomel",
-    ),
-    "витебск": (
-        "витебск",
-        "віцебск",
-        "vitebsk",
-    ),
-    "могилев": (
-        "могилев",
-        "магілёў",
-        "mogilev",
-        "mogilyov",
-    ),
-    "полоцк": (
-        "полоцк",
-        "полацк",
-        "polotsk",
-    ),
-    "пинск": (
-        "пинск",
-        "пінск",
-        "pinsk",
-    ),
-    "борисов": (
-        "борисов",
-        "барысаў",
-        "borisov",
-        "barysaw",
-    ),
-    "несвиж": (
-        "несвиж",
-        "нясвіж",
-        "nesvizh",
-    ),
-    "слуцк": (
-        "слуцк",
-        "слуцак",
-        "slutsk",
-    ),
-}
 
 
 # ---------------------------------------------------------------------------
 # Типы объектов
 # ---------------------------------------------------------------------------
 
-TYPE_QUERY_WORDS = {
-    "memorial": (
-        "memorial памятник помнік "
-        "monument мемориал мемарыял"
-    ),
-    "monument": (
-        "monument памятник помнік "
-        "мемориал мемарыял"
-    ),
-    "church": (
-        "church church building "
-        "церковь царква касцёл костёл храм собор"
-    ),
-    "castle": (
-        "castle замок замак "
-        "palace дворец палац"
-    ),
-    "museum": (
-        "museum музей"
-    ),
-    "manor": (
-        "manor усадьба сядзіба "
-        "palace дворец палац"
-    ),
-    "ruins": (
-        "ruins руины руіны"
-    ),
-    "park": (
-        "park парк"
-    ),
-    "viewpoint": (
-        "viewpoint панорама "
-        "смотровая площадка"
-    ),
-    "gallery": (
-        "gallery галерея"
-    ),
-    "theme_park": (
-        "theme park парк аттракционов"
-    ),
-}
 
 
 # ---------------------------------------------------------------------------
@@ -223,201 +101,26 @@ TYPE_QUERY_WORDS = {
 #
 # ---------------------------------------------------------------------------
 
-TRANSLIT_TABLE = str.maketrans(
-    {
-        "а": "a",
-        "б": "b",
-        "в": "v",
-        "г": "g",
-        "д": "d",
-        "е": "e",
-        "ё": "e",
-        "ж": "zh",
-        "з": "z",
-        "и": "i",
-        "й": "j",
-        "к": "k",
-        "л": "l",
-        "м": "m",
-        "н": "n",
-        "о": "o",
-        "п": "p",
-        "р": "r",
-        "с": "s",
-        "т": "t",
-        "у": "u",
-        "ф": "f",
-        "х": "h",
-        "ц": "c",
-        "ч": "ch",
-        "ш": "sh",
-        "щ": "shch",
-        "ъ": "",
-        "ы": "y",
-        "ь": "",
-        "э": "e",
-        "ю": "yu",
-        "я": "ya",
-
-        # Белорусские буквы
-        "ў": "u",
-        "і": "i",
-        "ґ": "g",
-    }
-)
 
 
-def _normalize_text(value: str) -> str:
-    """
-    Нормализация текста для поиска.
-
-    Сохраняем и кириллическую форму, и возможность сравнивать
-    через транслитерацию.
-    """
-    if not value:
-        return ""
-
-    value = str(value).lower()
-    value = value.replace("file:", "")
-    value = value.replace("&quot;", " ")
-    value = value.replace("&#39;", "'")
-
-    value = re.sub(
-        r"[^a-zа-яёіўґ0-9\s]",
-        " ",
-        value,
-        flags=re.IGNORECASE,
-    )
-
-    value = re.sub(r"\s+", " ", value)
-
-    return value.strip()
 
 
-def _translit(value: str) -> str:
-    """Простая транслитерация кириллицы в латиницу."""
-    value = _normalize_text(value)
-
-    if not value:
-        return ""
-
-    return value.translate(TRANSLIT_TABLE)
 
 
-def _text_forms(value: str) -> set[str]:
-    """
-    Возвращает варианты строки для сравнения:
-    - нормализованная кириллица;
-    - транслитерация.
-    """
-    normalized = _normalize_text(value)
-
-    if not normalized:
-        return set()
-
-    forms = {normalized}
-
-    transliterated = _translit(normalized)
-    if transliterated:
-        forms.add(transliterated)
-
-    return forms
 
 
 # ---------------------------------------------------------------------------
 # География
 # ---------------------------------------------------------------------------
 
-def is_in_belarus(lat: float, lon: float) -> bool:
-    """Быстрая проверка координат по bbox Беларуси."""
-    return (
-        BELARUS_BBOX["min_lat"] <= lat <= BELARUS_BBOX["max_lat"]
-        and BELARUS_BBOX["min_lon"] <= lon <= BELARUS_BBOX["max_lon"]
-    )
 
 
-def _distance_score(
-    object_lat: float,
-    object_lon: float,
-    photo_lat: float | None,
-    photo_lon: float | None,
-) -> int:
-    """
-    Грубая оценка близости фотографии к объекту.
-
-    Используем градусы, потому что для ранжирования этого достаточно.
-    """
-    if photo_lat is None or photo_lon is None:
-        return 0
-
-    try:
-        distance = (
-            (float(object_lat) - float(photo_lat)) ** 2
-            + (float(object_lon) - float(photo_lon)) ** 2
-        ) ** 0.5
-    except (TypeError, ValueError):
-        return 0
-
-    if distance <= 0.001:
-        return 120
-
-    if distance <= 0.003:
-        return 100
-
-    if distance <= 0.01:
-        return 70
-
-    if distance <= 0.03:
-        return 40
-
-    if distance <= 0.08:
-        return 20
-
-    return 0
 
 
 # ---------------------------------------------------------------------------
 # Проверка изображения
 # ---------------------------------------------------------------------------
 
-def _is_valid_photo(info: dict) -> bool:
-    """
-    Отбрасываем технический мусор и слишком маленькие изображения.
-    """
-    url = (info.get("url") or "").lower()
-
-    if not url:
-        return False
-
-    if url.endswith(BAD_EXTENSIONS):
-        return False
-
-    metadata = info.get("extmetadata", {})
-
-    description = (
-        metadata.get("ImageDescription", {}).get("value")
-        or metadata.get("ObjectName", {}).get("value")
-        or ""
-    )
-
-    description = str(description).lower()
-
-    if any(word in description for word in BAD_DESCRIPTION_WORDS):
-        return False
-
-    width = info.get("width", 0) or 0
-    height = info.get("height", 0) or 0
-
-    try:
-        width = int(width)
-        height = int(height)
-    except (TypeError, ValueError):
-        return False
-
-    if width < 600 or height < 400:
-        return False
-
-    return True
 
 
 # ---------------------------------------------------------------------------
@@ -494,11 +197,11 @@ async def _is_belarus_related(
                 category.get("title") or ""
             ).lower()
 
-            category_title = _normalize_text(category_title)
+            category_title = normalize_text(category_title)
 
             for city_variants in CITY_SYNONYMS.values():
                 if any(
-                    _normalize_text(v) in category_title
+                    normalize_text(v) in category_title
                     for v in city_variants
                 ):
                     return True, coordinates
@@ -756,14 +459,14 @@ async def _search_by_text(
             )
             continue
 
-        if not _is_valid_photo(info):
+        if not is_valid_photo(info):
             log(
                 f"Wikimedia REJECT invalid: "
                 f"{title}"
             )
             continue
 
-        score = _match_score(
+        score = match_score(
             title=title,
             name=name,
             city=city,
@@ -858,7 +561,7 @@ async def _search_by_text(
             for photo_lat, photo_lon in coordinates:
                 geo_bonus = max(
                     geo_bonus,
-                    _distance_score(
+                    distance_score(
                         object_lat,
                         object_lon,
                         photo_lat,
@@ -1019,14 +722,14 @@ async def _search_by_coordinates(
                 )
                 continue
 
-            if not _is_valid_photo(info):
+            if not is_valid_photo(info):
                 log(
                     f"Wikimedia GEO REJECT invalid: "
                     f"{title}"
                 )
                 continue
 
-            name_score = _match_score(
+            name_score = match_score(
                 title=title,
                 name=name,
                 city=city,
@@ -1163,206 +866,12 @@ async def _search_by_coordinates(
 # Скоринг названия
 # ---------------------------------------------------------------------------
 
-def _match_score(
-    title: str,
-    name: str,
-    city: str,
-    extra_words: str = "",
-) -> int:
-    """
-    Оценивает связь имени файла с объектом.
-
-    Важно:
-    высокий score означает сходство названий,
-    но не гарантирует 100% идентичность.
-    """
-
-    title_forms = _text_forms(title)
-    name_forms = _text_forms(name)
-
-    if not title_forms or not name_forms:
-        return 0
-
-    score = 0
-
-    # ---------------------------------------------------------------
-    # Полное название
-    # ---------------------------------------------------------------
-
-    for name_form in name_forms:
-        if not name_form:
-            continue
-
-        for title_form in title_forms:
-            if name_form in title_form:
-                score = max(score, 100)
-
-    # ---------------------------------------------------------------
-    # Существенные слова названия
-    # ---------------------------------------------------------------
-
-    name_normalized = _normalize_text(name)
-
-    name_words = [
-        word
-        for word in name_normalized.split()
-        if len(word) >= 3
-    ]
-
-    # Убираем слишком общие слова.
-    stop_words = {
-        "год",
-        "года",
-        "годдзе",
-        "годов",
-        "лет",
-        "the",
-        "and",
-        "for",
-        "in",
-        "of",
-        "на",
-        "в",
-        "из",
-        "и",
-        "імя",
-        "имени",
-    }
-
-    name_words = [
-        word
-        for word in name_words
-        if word not in stop_words
-    ]
-
-    if name_words:
-
-        matched = 0
-
-        for word in name_words:
-
-            word_forms = _text_forms(word)
-
-            found = False
-
-            for word_form in word_forms:
-                for title_form in title_forms:
-                    if word_form in title_form:
-                        found = True
-                        break
-
-                if found:
-                    break
-
-            if found:
-                matched += 1
-
-        ratio = matched / len(name_words)
-
-        if ratio >= 0.75:
-            score += 80
-        elif ratio >= 0.50:
-            score += 55
-        elif ratio >= 0.30:
-            score += 30
-        elif matched:
-            score += 15
-
-    # ---------------------------------------------------------------
-    # Город
-    # ---------------------------------------------------------------
-
-    city_variants = _city_variants(city)
-
-    for variant in city_variants:
-
-        variant_forms = _text_forms(variant)
-
-        if any(
-            any(
-                form in title_form
-                for title_form in title_forms
-            )
-            for form in variant_forms
-        ):
-            score += 30
-            break
-
-    # ---------------------------------------------------------------
-    # Тип объекта
-    # ---------------------------------------------------------------
-
-    if extra_words:
-
-        type_words = [
-            word
-            for word in _normalize_text(extra_words).split()
-            if len(word) >= 4
-        ]
-
-        for word in type_words:
-
-            word_forms = _text_forms(word)
-
-            if any(
-                any(
-                    form in title_form
-                    for title_form in title_forms
-                )
-                for form in word_forms
-            ):
-                score += 15
-                break
-
-    return score
 
 
 # ---------------------------------------------------------------------------
 # Варианты города
 # ---------------------------------------------------------------------------
 
-def _city_variants(city: str) -> list[str]:
-    """Возвращает варианты написания города."""
-
-    normalized = _normalize_text(city)
-
-    if not normalized:
-        return []
-
-    variants = {
-        normalized,
-    }
-
-    transliterated = _translit(normalized)
-
-    if transliterated:
-        variants.add(transliterated)
-
-    for base, synonyms in CITY_SYNONYMS.items():
-
-        normalized_synonyms = {
-            _normalize_text(item)
-            for item in synonyms
-        }
-
-        if (
-            normalized == base
-            or normalized in normalized_synonyms
-        ):
-            variants.add(
-                _normalize_text(base)
-            )
-
-            for synonym in synonyms:
-                variants.add(
-                    _normalize_text(synonym)
-                )
-
-    return [
-        variant
-        for variant in variants
-        if variant
-    ]
 
 
 # ---------------------------------------------------------------------------
