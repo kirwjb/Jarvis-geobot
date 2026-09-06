@@ -1,0 +1,116 @@
+name: Update Telegram auth frontend
+
+on:
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update frontend auth flow
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path("frontend/app.js")
+          text = path.read_text(encoding="utf-8")
+
+          old = """      Accept: 'application/json',
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(options.headers || {})
+"""
+          new = """      Accept: 'application/json',
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(tg?.initData ? { 'Authorization': `tma ${tg.initData}` } : {}),
+      ...(options.headers || {})
+"""
+          if old not in text:
+              raise SystemExit("apiFetch header block not found")
+          text = text.replace(old, new, 1)
+
+          marker = "async function toggleFav(id) {"
+          auth_fn = """async function authenticateTelegram() {
+  if (!tg?.initData) {
+    toast('Откройте приложение через Telegram');
+    return false;
+  }
+
+  try {
+    await apiFetch('/auth/telegram', { method: 'POST' });
+    return true;
+  } catch (error) {
+    console.error('Telegram auth error:', error);
+    toast('Не удалось подтвердить Telegram');
+    return false;
+  }
+}
+
+"""
+          if marker not in text:
+              raise SystemExit("toggleFav marker not found")
+          text = text.replace(marker, auth_fn + marker, 1)
+
+          old = """async function toggleFav(id) {
+  const userId = getTelegramUserId();
+  if (!userId) {
+    toast('Откройте приложение через Telegram для избранного');
+    return;
+  }
+
+  try {
+    const data = await apiFetch('/favorites/toggle', {
+      method: 'POST',
+      body: JSON.stringify({ user_id: userId, poi_id: String(id) })
+    });
+"""
+          new = """async function toggleFav(id) {
+  try {
+    const data = await apiFetch('/favorites/toggle', {
+      method: 'POST',
+      body: JSON.stringify({ poi_id: String(id) })
+    });
+"""
+          if old not in text:
+              raise SystemExit("toggleFav body not found")
+          text = text.replace(old, new, 1)
+
+          old = """async function loadFavorites() {
+  const userId = getTelegramUserId();
+  if (!userId) return;
+
+  try {
+    const data = await apiFetch(`/favorites/${userId}`);
+"""
+          new = """async function loadFavorites() {
+  try {
+    const data = await apiFetch('/favorites/me');
+"""
+          if old not in text:
+              raise SystemExit("loadFavorites body not found")
+          text = text.replace(old, new, 1)
+
+          old = """  await Promise.all([loadRegions(), loadFavorites()]);
+"""
+          new = """  const authenticated = await authenticateTelegram();
+  if (!authenticated) return;
+
+  await Promise.all([loadRegions(), loadFavorites()]);
+"""
+          if old not in text:
+              raise SystemExit("init bootstrap block not found")
+          text = text.replace(old, new, 1)
+
+          path.write_text(text, encoding="utf-8")
+      - name: Validate frontend syntax
+        run: node --check frontend/app.js
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/app.js
+          git diff --cached --quiet || git commit -m "feat(frontend): send Telegram initData"
+          git push
