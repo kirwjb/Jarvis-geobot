@@ -170,6 +170,36 @@ def normalize_category(value: str) -> str:
     return "misc"
 
 
+TAG_CATEGORY_MAP = {
+    "architecture": {
+        "castle",
+        "church",
+        "monument",
+        "manor",
+        "gallery",
+        "ruins",
+    },
+    "nature": {
+        "park",
+        "viewpoint",
+        "ruins",
+    },
+    "museum": {"museum"},
+    "church": {"church"},
+    "castle": {"castle"},
+    "monument": {"monument"},
+    "park": {"park"},
+}
+
+
+def expand_poi_tags(tags: list[str]) -> set[str]:
+    categories: set[str] = set()
+    for tag in tags:
+        key = str(tag or "").strip().lower()
+        categories.update(TAG_CATEGORY_MAP.get(key, {normalize_category(key)}))
+    return categories
+
+
 def normalize_limit(value: int) -> int:
     return min(max(value, 1), MAX_POI_LIMIT)
 
@@ -306,7 +336,7 @@ async def get_places_from_db(
     *,
     region: Optional[str] = None,
     city: Optional[str] = None,
-    category: Optional[str] = None,
+    category: Optional[str | list[str] | set[str]] = None,
     offset: int = 0,
     limit: int = MAX_POI_LIMIT,
 ) -> list[Place]:
@@ -316,7 +346,10 @@ async def get_places_from_db(
     if city:
         query = query.where(Place.city == city)
     if category:
-        query = query.where(Place.category == category)
+        if isinstance(category, (list, set, tuple)):
+            query = query.where(Place.category.in_(category))
+        else:
+            query = query.where(Place.category == category)
     query = (
         query
         .order_by(Place.name.asc())
@@ -522,12 +555,14 @@ async def query_pois(query: POIQuery):
 
     limit = normalize_limit(query.limit)
     offset = normalize_offset(query.offset)
+    tag_categories = expand_poi_tags(query.tags) if query.tags else None
 
     async with AsyncSessionLocal() as session:
         places = await get_places_from_db(
             session,
             region=query.region,
             city=query.city,
+            category=tag_categories,
             offset=offset,
             limit=limit,
         )
@@ -554,20 +589,10 @@ async def query_pois(query: POIQuery):
                     session,
                     region=query.region,
                     city=query.city,
+                    category=tag_categories,
                     offset=0,
                     limit=MAX_POI_LIMIT,
                 )
-
-        # Фильтр по категориям, если клиент передал теги.
-        if query.tags:
-            normalized_tags = {
-                normalize_category(tag) for tag in query.tags
-            }
-            places = [
-                place
-                for place in places
-                if place.category in normalized_tags
-            ]
 
         # Гарантируем наличие фото для каждого места.
         # ВАЖНО: это может быть медленно при первом запросе,
