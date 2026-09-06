@@ -31,20 +31,33 @@
     return true;
   }
 
-  const activate = event => {
+  window.__jarvisForceTravel = forceTravelScreen;
+
+  function activate(event) {
     event.preventDefault();
     event.stopPropagation();
     forceTravelScreen();
-  };
+  }
 
-  // Pointer events are the lowest-level reliable path for mouse + touch in Telegram WebView.
-  start.addEventListener('pointerdown', activate, { capture: true, passive: false });
+  start.addEventListener('pointerup', activate, { capture: true, passive: false });
   start.addEventListener('click', activate, { capture: true, passive: false });
-
-  // Fallback for older WebViews without reliable PointerEvent support.
   start.addEventListener('touchend', activate, { capture: true, passive: false });
 
-  // Protect against app.js restoring a stale saved screen while its async init finishes.
+  /* Last-resort coordinate delegation. If Telegram/Chromium resolves the
+     pointer target to a text node or another overlay, inspect every element
+     under the pointer and trigger the actual control. */
+  document.addEventListener('pointerup', event => {
+    if (event.target === start || start.contains(event.target)) return;
+    const stack = document.elementsFromPoint(event.clientX, event.clientY);
+    if (stack.includes(start)) activate(event);
+  }, { capture: true, passive: false });
+
+  document.addEventListener('click', event => {
+    if (event.target === start || start.contains(event.target)) return;
+    const stack = document.elementsFromPoint(event.clientX, event.clientY);
+    if (stack.includes(start)) activate(event);
+  }, { capture: true, passive: false });
+
   const guard = setInterval(() => {
     if (!requested) return;
     const splash = document.getElementById('splash');
