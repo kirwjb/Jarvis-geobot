@@ -1,103 +1,70 @@
 (() => {
   const PAGE_SIZE = 8;
-  let currentPage = 0;
+  const pageCache = new Map();
+  let page = 0;
+  let loadingPage = false;
   let hasNextPage = false;
-  let loading = false;
 
-  function renderPageControls() {
-    let box = document.getElementById('poi-pagination');
-    if (!box) return;
-    if (!S.filtered.length && !hasNextPage) {
-      box.innerHTML = '';
-      return;
-    }
-    box.innerHTML = `
-      <button class="poi-page-btn" type="button" ${currentPage <= 0 || loading ? 'disabled' : ''} onclick="loadPoiPage(${currentPage - 1})">←</button>
-      <span class="poi-page-label">Страница ${currentPage + 1}</span>
-      <button class="poi-page-btn" type="button" ${!hasNextPage || loading ? 'disabled' : ''} onclick="loadPoiPage(${currentPage + 1})">→</button>
-    `;
+  const cacheKey = () => JSON.stringify({region: S.region, city: S.city, tags: [...S.tags].sort()});
+
+  function skeletons() {
+    return Array.from({length: PAGE_SIZE}, () => `
+      <div class="poi-card poi-skeleton" aria-hidden="true">
+        <div class="poi-img skeleton-block"></div>
+        <div class="poi-body"><div class="skeleton-line wide"></div><div class="skeleton-line"></div><div class="skeleton-line short"></div></div>
+      </div>`).join('');
   }
 
   function renderCurrentPage() {
     const feed = document.getElementById('feed');
     if (!feed) return;
-    if (!S.filtered.length) {
-      feed.innerHTML = '<div style="text-align:center;padding:50px;color:var(--muted)">Ничего не найдено</div>';
-      renderPageControls();
-      return;
-    }
-    feed.innerHTML = S.filtered.map(place => {
+    const pois = pageCache.get(`${cacheKey()}:${page}`) || [];
+    S.filtered = pois;
+    if (!pois.length) feed.innerHTML = '<div style="text-align:center;padding:50px;color:var(--muted)">Ничего не найдено</div>';
+    else feed.innerHTML = pois.map(place => {
       const id = String(place.id);
-      const favorite = S.favs.has(id);
-      const inRoute = S.route.some(item => String(item.id) === id);
-      const image = place.images?.medium || place.images?.thumb || place.image_url;
-      return `
-        <div class="poi-card" role="button" tabindex="0" onclick="openPoiDetail('${escapeAttr(id)}')" onkeydown="if(event.key==='Enter'||event.key===' ')openPoiDetail('${escapeAttr(id)}')">
-          <div class="poi-img">
-            ${image ? `<img src="${escapeAttr(image)}" alt="${escapeAttr(place.name)}" loading="lazy">` : '<div class="jarvis-detail-placeholder" style="height:100%">🏛️</div>'}
-          </div>
-          <div class="poi-body">
-            <div class="poi-name">${escapeHtml(place.name)}</div>
-            <div class="poi-loc">📍 ${escapeHtml(place.city || '')}</div>
-            ${place.address ? `<div class="poi-loc">${escapeHtml(place.address)}</div>` : ''}
-            <div class="poi-actions">
-              <button class="poi-act ${favorite ? 'active' : ''}" type="button" onclick="event.stopPropagation(); toggleFav('${escapeAttr(id)}')">${favorite ? '❤️' : '♡'} Favorite</button>
-              <button class="poi-act ${inRoute ? 'active' : ''}" type="button" onclick="event.stopPropagation(); toggleRoute('${escapeAttr(id)}')">${inRoute ? '✓' : '＋'} Route</button>
-            </div>
-          </div>
-        </div>
-      `;
+      const image = place.images?.medium || place.images?.thumb || place.image_url || place.photo?.local_url_medium;
+      const fav = S.favs.has(id), route = S.route.some(x => String(x.id) === id);
+      return `<div class="poi-card" role="button" tabindex="0" onclick="openPoiDetail('${escapeAttr(id)}')" onkeydown="if(event.key==='Enter'||event.key===' ')openPoiDetail('${escapeAttr(id)}')">
+        <div class="poi-img">${image ? `<img src="${escapeAttr(image)}" alt="${escapeAttr(place.name)}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\'jarvis-detail-placeholder\'>🏛️</div>'">` : '<div class="jarvis-detail-placeholder">🏛️</div>'}</div>
+        <div class="poi-body"><div class="poi-name">${escapeHtml(place.name)}</div><div class="poi-loc">📍 ${escapeHtml(place.city || '')}</div>${place.address ? `<div class="poi-loc">${escapeHtml(place.address)}</div>` : ''}<div class="poi-actions"><button class="poi-act ${fav?'active':''}" onclick="event.stopPropagation();toggleFav('${escapeAttr(id)}')">${fav?'❤️':'♡'} Favorite</button><button class="poi-act ${route?'active':''}" onclick="event.stopPropagation();toggleRoute('${escapeAttr(id)}')">${route?'✓':'＋'} Route</button></div></div></div>`;
     }).join('');
-    renderPageControls();
+    renderPagination();
   }
 
-  window.loadPoiPage = async function(targetPage) {
-    if (targetPage < 0 || loading) return;
-    if (targetPage > currentPage && !hasNextPage) return;
+  function renderPagination() {
+    const box = document.getElementById('poi-pagination');
+    if (!box) return;
+    box.innerHTML = `<button class="poi-page-btn" ${page===0?'disabled':''} onclick="changePoiPage(${page-1})">←</button><span class="poi-page-label">${page+1}${hasNextPage?' / …':''}</span><button class="poi-page-btn" ${!hasNextPage?'disabled':''} onclick="changePoiPage(${page+1})">→</button>`;
+  }
 
-    loading = true;
-    const feed = document.getElementById('feed');
-    if (feed) feed.innerHTML = '<div style="padding:50px;text-align:center;color:var(--muted)">Загрузка мест…</div>';
-
+  window.changePoiPage = async nextPage => {
+    if (nextPage < 0 || loadingPage) return;
+    const key = `${cacheKey()}:${nextPage}`;
+    if (pageCache.has(key)) { page = nextPage; hasNextPage = pageCache.get(`${cacheKey()}:${nextPage}:hasNext`) === true; renderCurrentPage(); document.getElementById('cards')?.scrollTo({top:0,behavior:'smooth'}); return; }
+    loadingPage = true;
+    document.getElementById('feed').innerHTML = skeletons();
     try {
-      const data = await apiFetch('/pois/query', {
-        method: 'POST',
-        body: JSON.stringify({
-          region: S.region,
-          city: S.city,
-          tags: [...S.tags],
-          limit: PAGE_SIZE + 1,
-          offset: targetPage * PAGE_SIZE
-        })
-      });
-
-      const pois = Array.isArray(data?.pois) ? data.pois : [];
-      hasNextPage = pois.length > PAGE_SIZE;
-      S.filtered = pois.slice(0, PAGE_SIZE);
-      currentPage = targetPage;
-      renderCurrentPage();
-      document.getElementById('cards')?.scrollTo?.({ top: 0, behavior: 'smooth' });
-    } catch (error) {
-      console.error('Failed to load POI page:', error);
-      if (feed) feed.innerHTML = `<div style="text-align:center;padding:50px;color:var(--muted)">Не удалось загрузить места<br><small>${escapeHtml(error.message)}</small></div>`;
-    } finally {
-      loading = false;
-      renderPageControls();
-    }
+      const data = await apiFetch('/pois/query', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({region:S.region,city:S.city,tags:[...S.tags],limit:PAGE_SIZE+1,offset:nextPage*PAGE_SIZE})});
+      const pois = data?.places || data?.pois || [];
+      pageCache.set(key, pois.slice(0,PAGE_SIZE));
+      pageCache.set(`${cacheKey()}:${nextPage}:hasNext`, pois.length > PAGE_SIZE);
+      page = nextPage; hasNextPage = pois.length > PAGE_SIZE; renderCurrentPage();
+      document.getElementById('cards')?.scrollTo({top:0,behavior:'smooth'}); haptic('light');
+    } catch (e) { document.getElementById('feed').innerHTML='<div style="text-align:center;padding:50px;color:var(--muted)">Не удалось загрузить места.<br>Попробуйте ещё раз.</div>'; toast(e.message || 'Ошибка загрузки'); }
+    finally { loadingPage = false; }
   };
 
-  window.loadCards = async function() {
-    if (!S.region || !S.city) { toast('Сначала выберите регион и город'); return; }
-    if (S.tags.size === 0) { toast('Выберите хотя бы одну категорию'); return; }
-    const feed = document.getElementById('feed');
-    if (feed) feed.innerHTML = '<div style="padding:50px;text-align:center;color:var(--muted)">Загрузка мест…</div>';
-    go('cards');
-    currentPage = 0;
-    hasNextPage = false;
-    await loadPoiPage(0);
-    const title = document.getElementById('cards-title');
-    if (title) title.textContent = S.city || 'Места';
+  window.loadCards = async () => {
+    if (!S.region || !S.city) return toast('Сначала выберите регион и город');
+    if (!S.tags.size) return toast('Выберите хотя бы одну категорию');
+    go('cards'); page=0; loadingPage=true; pageCache.clear();
+    document.getElementById('feed').innerHTML=skeletons(); renderPagination();
+    try {
+      const data=await apiFetch('/pois/query',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({region:S.region,city:S.city,tags:[...S.tags],limit:PAGE_SIZE+1,offset:0})});
+      const pois=data?.places || data?.pois || [];
+      const base=cacheKey(); pageCache.set(`${base}:0`,pois.slice(0,PAGE_SIZE)); pageCache.set(`${base}:0:hasNext`,pois.length>PAGE_SIZE); hasNextPage=pois.length>PAGE_SIZE; renderCurrentPage();
+    } catch(e) { document.getElementById('feed').innerHTML='<div style="text-align:center;padding:50px;color:var(--muted)">Не удалось загрузить места.</div>'; toast(e.message || 'Ошибка загрузки'); }
+    finally { loadingPage=false; }
   };
-
-  window.renderFeed = renderCurrentPage;
 })();
