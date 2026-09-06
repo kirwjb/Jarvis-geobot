@@ -18,16 +18,13 @@
 
 ## 📸 Screenshots
 
-<!-- Add Mini App screenshots here -->
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/e542e4f3-277a-41f3-96fb-7468a1670159" alt="Places" width="220">
+  <img src="https://github.com/user-attachments/assets/da32c2aa-8e8e-4346-8cfe-2c2f9aaa6e86" alt="Weather" width="220">
+  <img src="https://github.com/user-attachments/assets/2cb92f73-3cb6-4ae1-81cd-af87aab910f2" alt="Route" width="220">
+</p>
 
-| Places | Weather | Route |
-|:---:|:---:|:---:|
-| `<img width="635" height="1280" alt="1000007252" src="https://github.com/user-attachments/assets/e542e4f3-277a-41f3-96fb-7468a1670159" />
-` | `<img width="672" height="1280" alt="1000007246" src="https://github.com/user-attachments/assets/da32c2aa-8e8e-4346-8cfe-2c2f9aaa6e86" />
-` | `<img width="671" height="1280" alt="1000007245" src="https://github.com/user-attachments/assets/2cb92f73-3cb6-4ae1-81cd-af87aab910f2" />
-` |
-| Check weather | Save places| Create routes|
-
+<p align="center"><strong>Places</strong>　　<strong>Weather</strong>　　<strong>Route</strong></p>
 
 ---
 
@@ -330,7 +327,7 @@ source venv/bin/activate
 #### Windows
 
 ```bash
-venv\Scripts\activate
+venv\\Scripts\\activate
 ```
 
 ### 3. Install dependencies
