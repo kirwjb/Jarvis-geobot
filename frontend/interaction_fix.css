@@ -1,0 +1,71 @@
+/* Critical interaction hardening for desktop browsers and Telegram WebView. */
+html,
+body {
+  cursor: default;
+}
+
+button,
+[role="button"] {
+  cursor: pointer !important;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+button:disabled,
+[role="button"][aria-disabled="true"] {
+  cursor: not-allowed !important;
+}
+
+.top-controls {
+  position: fixed !important;
+  z-index: 10000 !important;
+  pointer-events: none !important;
+}
+
+.top-controls > button {
+  pointer-events: auto !important;
+  position: relative;
+  z-index: 10001;
+}
+
+#splash {
+  position: relative;
+  z-index: 1;
+}
+
+#splash .splash-wrap {
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
+}
+
+#splash .splash-wrap > button,
+#splash .splash-wrap > a,
+#splash .splash-wrap > input {
+  position: relative;
+  z-index: 100;
+  pointer-events: auto !important;
+}
+
+#start-travel {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.bottom-nav {
+  z-index: 10000 !important;
+}
+
+.bottom-nav-item,
+.back,
+.btn-main,
+.btn-route,
+.top-control,
+.tag,
+.card,
+.poi-act,
+.fab {
+  touch-action: manipulation;
+}
