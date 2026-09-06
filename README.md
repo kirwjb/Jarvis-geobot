@@ -1,221 +1,337 @@
-# 🗺️ JARVIS GEO-BOT
+# 🗺️ JARVIS GeoBot
 
-> Telegram-бот и Mini App для планирования путешествий, поиска достопримечательностей и построения маршрутов.
+> A Telegram travel assistant for discovering places, planning routes, checking weather, and exploring cities.
 
-**JARVIS GEO-BOT** — географический travel-сервис внутри Telegram, созданный для удобного планирования поездок. Пользователь может находить интересные места, добавлять их в избранное и маршрут, голосовать за точки вместе с другими участниками и получать готовый маршрут.
+<p align="center">
+  <img src="frontend/logo.svg" alt="JARVIS GeoBot" width="96">
+</p>
 
-Проект ориентирован прежде всего на путешествия по Беларуси, но архитектура позволяет расширять географию и добавлять новые источники данных.
+<p align="center">
+  <strong>Discover places. Plan routes. Explore more.</strong>
+</p>
 
----
-
-## ✨ Возможности
-
-### 🗺️ Поиск мест
-
-* поиск достопримечательностей по городам;
-* разделение мест по категориям;
-* получение данных через OpenStreetMap / Overpass API;
-* кэширование результатов для уменьшения количества внешних запросов;
-* поддержка нескольких Overpass-серверов с возможностью настройки.
-
-### 🧭 Построение маршрутов
-
-Пользователь может:
-
-1. выбрать регион;
-2. выбрать город;
-3. выбрать категорию интересующих мест;
-4. добавить понравившиеся точки;
-5. собрать несколько точек в один маршрут;
-6. построить маршрут.
-
-Для построения маршрута необходимо выбрать минимум две точки.
-
-### ❤️ Избранное
-
-Понравившиеся места можно сохранить в избранное и вернуться к ним позже.
-
-### 📜 История
-
-Бот сохраняет историю запросов и построенных маршрутов, позволяя пользователю возвращаться к предыдущим действиям.
-
-### 👥 Групповые поездки
-
-JARVIS поддерживает виртуальные группы для совместного планирования путешествий.
-
-Участники могут:
-
-* создавать группы;
-* добавлять пользователей по `@username`;
-* управлять участниками;
-* выбирать места вместе;
-* голосовать за точки;
-* утверждать точки маршрута;
-* переключаться между одиночным и групповым режимом.
-
-Создатель группы имеет расширенные права управления.
+<p align="center">
+  <code>v1.4126.060926</code> · <strong>Beta</strong>
+</p>
 
 ---
 
-## 🌍 Поддерживаемые регионы
+## 📸 Screenshots
 
-На данный момент в конфигурации проекта предусмотрены:
+<!-- Add Mini App screenshots here -->
 
-* 🇧🇾 Минская область
-* 🇧🇾 Брестская область
-* 🇧🇾 Витебская область
-* 🇧🇾 Гомельская область
-* 🇧🇾 Гродненская область
-* 🇧🇾 Могилёвская область
+| Places | Weather | Route |
+|:---:|:---:|:---:|
+| `<!-- screenshot -->` | `<!-- screenshot -->` | `<!-- screenshot -->` |
+| Add screenshot | Add screenshot | Add screenshot |
 
-Среди городов:
+> Replace the placeholders above with screenshots when they are ready.
 
-**Минск, Брест, Гродно, Борисов, Солигорск, Молодечно, Барановичи, Пинск, Кобрин, Витебск, Орша, Полоцк, Новополоцк, Гомель, Мозырь, Жлобин, Речица, Лида, Волковыск, Сморгонь, Могилёв, Бобруйск, Горки, Осиповичи** и другие.
+---
 
-Список городов и лимитов на выдачу можно изменять через конфигурацию проекта.
+## ✨ Overview
+
+**JARVIS GeoBot** is a Telegram bot and Mini App built for travel discovery and trip planning.
+
+Instead of switching between several services, users can discover places, save interesting locations, build routes, check weather, and plan trips together — directly inside Telegram.
+
+The project currently focuses primarily on **Belarus**, while the architecture is designed to support additional regions and external data sources.
+
+### What users can do
+
+- 🗺️ Explore interesting places in selected cities
+- 🔎 Filter places by category
+- 🖼️ View place information and available photos
+- ❤️ Save places to Favorites
+- 🧭 Build a personal route from selected locations
+- 🌤️ Check weather for a selected city
+- 👥 Plan trips collaboratively
+- 🗳️ Vote for places during group planning
+- 📍 Discover locations using OpenStreetMap data
 
 ---
 
 ## 🌐 Telegram Mini App
 
-Помимо классического Telegram-интерфейса, проект содержит веб-интерфейс Mini App.
+The **Telegram Mini App** is the main user-facing interface of JARVIS.
 
-Frontend находится в:
+It is designed around a simple travel flow:
 
 ```text
-frontend/
+Region → City → Interests → Places → Favorites / Route
 ```
 
-Backend построен на FastAPI и может одновременно обслуживать веб-приложение и Telegram-бота.
+### Main sections
 
-Основной combined-запуск использует:
+| Section | Purpose |
+|---|---|
+| 🗺️ Regions | Choose a geographic region |
+| 🏙️ Cities | Select a destination |
+| 🏷️ Categories | Filter places by interests |
+| 📍 Places | Discover points of interest |
+| ❤️ Favorites | Save and revisit places |
+| 🧭 Route | Manage selected locations |
+| 🌤️ Weather | Check current weather |
+| 👥 Groups | Plan trips together |
+
+---
+
+## 🗺️ Places
+
+Places discovery is one of the core features of JARVIS.
+
+Users select a region, city, and category to receive a feed of points of interest.
+
+Each place card can include:
+
+- Place name
+- City
+- Address
+- Photo
+- Favorite action
+- Route action
+- Detailed information
+
+### Fast and incremental loading
+
+The places feed uses **pagination** instead of loading the entire dataset at once.
+
+Place photos are loaded independently from the main places request. This keeps the feed responsive even when a particular image is unavailable or takes longer to load.
 
 ```text
-main_combined.py
+Places request
+      │
+      ▼
+Render place cards
+      │
+      └──► Load missing photos asynchronously
 ```
 
-FastAPI запускается на:
+### Data sources
+
+Geographic information is primarily obtained from:
+
+- **OpenStreetMap**
+- **Overpass API**
+
+Place images can be retrieved from **Wikimedia** services and cached by the backend.
+
+---
+
+## ❤️ Favorites
+
+Interesting places can be saved to Favorites and accessed later.
+
+Favorites are associated with the Telegram user and synchronized with the backend.
+
+A place can be added or removed directly from its card, making it easy to build a personal collection of destinations.
+
+---
+
+## 🧭 Routes
+
+JARVIS allows users to build a route from selected places.
+
+Typical workflow:
+
+1. Select a region
+2. Select a city
+3. Browse places
+4. Add interesting locations to the route
+5. Review the selected places
+6. Build the route
+
+Places can be added or removed directly from the places feed.
+
+The route system is designed to turn a collection of interesting locations into a practical travel plan.
+
+---
+
+## 🌤️ Weather
+
+JARVIS provides weather information for the selected city.
+
+The Mini App can display:
+
+- Temperature
+- Weather description
+- Humidity
+- Wind speed
+- Atmospheric pressure
+- Cache status
+
+Weather information can be refreshed directly from the Mini App.
+
+---
+
+## 👥 Group Trips
+
+JARVIS also supports collaborative travel planning.
+
+Groups can be used to build a shared trip with other users.
+
+Group functionality includes:
+
+- Creating groups
+- Adding participants
+- Managing members
+- Selecting places together
+- Voting for locations
+- Approving places for a shared route
+- Switching between individual and group planning
+
+The group creator has extended management permissions.
+
+---
+
+## 🌍 Supported Geography
+
+The current configuration includes the main regions of Belarus:
+
+- 🇧🇾 Minsk Region
+- 🇧🇾 Brest Region
+- 🇧🇾 Vitebsk Region
+- 🇧🇾 Gomel Region
+- 🇧🇾 Grodno Region
+- 🇧🇾 Mogilev Region
+
+The project currently includes cities such as **Minsk, Brest, Grodno, Borisov, Soligorsk, Molodechno, Baranovichi, Pinsk, Kobrin, Vitebsk, Orsha, Polotsk, Novopolotsk, Gomel, Mozyr, Zhlobin, Rechitsa, Lida, Volkovysk, Smorgon, Mogilev, Bobruisk, Gorki, Osipovichi**, and others.
+
+The city and region configuration can be expanded as the project grows.
+
+---
+
+## 🏗️ Architecture
+
+JARVIS combines a Telegram bot, a FastAPI backend, a Telegram Mini App, persistent storage, caching, and external geographic services.
 
 ```text
-http://0.0.0.0:8000
+                         ┌─────────────────────┐
+                         │     Telegram User   │
+                         └──────────┬──────────┘
+                                    │
+                                    ▼
+                         ┌─────────────────────┐
+                         │   Telegram Mini App │
+                         │      Frontend       │
+                         └──────────┬──────────┘
+                                    │
+                                    ▼
+                         ┌─────────────────────┐
+                         │       FastAPI       │
+                         │       REST API      │
+                         └───────┬─────┬───────┘
+                                 │     │
+                    ┌────────────┘     └────────────┐
+                    ▼                               ▼
+             ┌─────────────┐                 ┌─────────────┐
+             │ PostgreSQL  │                 │    Redis    │
+             │   Database  │                 │ Cache/State │
+             └─────────────┘                 └─────────────┘
+                    │
+                    ▼
+             ┌─────────────────────┐
+             │   External Services │
+             │ OSM / Overpass      │
+             │ Wikimedia           │
+             └─────────────────────┘
+
+                         ┌─────────────────────┐
+                         │    Telegram Bot     │
+                         │    AsyncTeleBot     │
+                         └─────────────────────┘
 ```
 
 ---
 
-## 🏗️ Архитектура
+## 🧰 Tech Stack
 
-Проект построен вокруг нескольких основных компонентов:
-
-```text
-                    ┌─────────────────────┐
-                    │     Telegram Bot    │
-                    │   AsyncTeleBot      │
-                    └──────────┬──────────┘
-                               │
-                               ▼
-                    ┌─────────────────────┐
-                    │      Handlers       │
-                    │ commands / groups   │
-                    │ routes / admin      │
-                    └──────────┬──────────┘
-                               │
-             ┌─────────────────┼─────────────────┐
-             ▼                 ▼                 ▼
-      ┌─────────────┐   ┌─────────────┐   ┌─────────────┐
-      │ PostgreSQL  │   │    Redis    │   │    OSM      │
-      │ persistent  │   │ cache/state │   │  Overpass   │
-      │    data     │   │   sessions  │   │     API     │
-      └─────────────┘   └─────────────┘   └─────────────┘
-                              
-                    ┌─────────────────────┐
-                    │       FastAPI       │
-                    │     REST / MiniApp  │
-                    └──────────┬──────────┘
-                               │
-                               ▼
-                    ┌─────────────────────┐
-                    │      Frontend       │
-                    │     Telegram UI     │
-                    └─────────────────────┘
-```
-
-### Основной стек
-
-| Компонент        | Технология                          |
-| ---------------- | ----------------------------------- |
-| Backend          | Python                              |
-| Telegram Bot     | `pyTelegramBotAPI` / `AsyncTeleBot` |
-| Web API          | FastAPI                             |
-| ASGI Server      | Uvicorn                             |
-| Database         | PostgreSQL                          |
-| ORM              | SQLAlchemy                          |
-| Migrations       | Alembic                             |
-| Cache / Sessions | Redis                               |
-| Geo data         | OpenStreetMap / Overpass API        |
-| Frontend         | HTML / CSS / JavaScript             |
-| Configuration    | `.env`                              |
+| Component | Technology |
+|---|---|
+| Backend | Python |
+| API | FastAPI |
+| Telegram Bot | pyTelegramBotAPI / AsyncTeleBot |
+| ASGI Server | Uvicorn |
+| Database | PostgreSQL |
+| ORM | SQLAlchemy |
+| Migrations | Alembic |
+| Cache / State | Redis |
+| Geographic Data | OpenStreetMap / Overpass API |
+| Place Images | Wikimedia |
+| Frontend | HTML / CSS / JavaScript |
+| Platform | Telegram Mini Apps |
 
 ---
 
-## 📁 Структура проекта
+## 📁 Project Structure
 
 ```text
 Jarvis-geobot/
 │
-├── frontend/              # Telegram Mini App
+├── frontend/                  # Telegram Mini App
+│   ├── css/
+│   │   ├── interactions.css
+│   │   ├── components.css
+│   │   └── weather.css
+│   │
+│   ├── js/
+│   │   ├── core/              # State, API and routing
+│   │   ├── features/          # Travel, places, weather and routes
+│   │   └── ui/                # Helpers, theme and localization
+│   │
+│   ├── index.html
+│   └── logo.svg
 │
 ├── src/
-│   ├── database/          # PostgreSQL, модели и сессии
-│   ├── handlers/          # Telegram handlers
-│   ├── middleware/        # Middleware и безопасность
-│   ├── routers/           # FastAPI routes
-│   └── utils/             # Утилиты, языки, логирование и т.д.
+│   ├── database/              # Database models and sessions
+│   ├── handlers/              # Telegram handlers
+│   ├── middleware/            # Middleware and security
+│   ├── routers/               # FastAPI endpoints
+│   ├── services/              # External services
+│   └── utils/                 # Utilities and localization
 │
-├── migrations/            # Alembic migrations
+├── migrations/                # Alembic migrations
 │
-├── main.py                # Основной запуск Telegram-бота
-├── main_combined.py       # Bot + FastAPI + Mini App
+├── main.py                    # Telegram bot
+├── main_combined.py           # Bot + FastAPI + Mini App
 │
-├── .env.example           # Пример конфигурации
-├── alembic.ini            # Конфигурация Alembic
-├── requirements.txt       # Python dependencies
-├── package.json           # Frontend / Node dependencies
-│
+├── .env.example
+├── alembic.ini
+├── requirements.txt
+├── package.json
 └── LICENSE
 ```
 
 ---
 
-# 🚀 Установка
+## 🚀 Installation
 
-## 1. Клонирование
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/kirwjb/Jarvis-geobot.git
 cd Jarvis-geobot
 ```
 
-## 2. Создание виртуального окружения
+### 2. Create a virtual environment
 
 ```bash
 python -m venv venv
 ```
 
-### Linux / macOS
+#### Linux / macOS
 
 ```bash
 source venv/bin/activate
 ```
 
-### Windows
+#### Windows
 
 ```bash
 venv\Scripts\activate
 ```
 
----
-
-## 3. Установка Python-зависимостей
+### 3. Install dependencies
 
 ```bash
 pip install -r requirements.txt
@@ -223,23 +339,17 @@ pip install -r requirements.txt
 
 ---
 
-## 4. Настройка окружения
+## ⚙️ Configuration
 
-Создайте `.env` на основе:
+Create a `.env` file based on `.env.example`.
 
-```text
-.env.example
-```
-
-Минимально необходимо указать токен Telegram-бота:
+At minimum, configure the Telegram bot token:
 
 ```env
 BOT_TOKEN=your_telegram_bot_token
 ```
 
-Также проект поддерживает настройку PostgreSQL и Redis.
-
-Пример:
+Example PostgreSQL configuration:
 
 ```env
 DB_USER=postgres
@@ -247,50 +357,53 @@ DB_PASSWORD=password
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=jarvis_db
+```
 
+Example Redis configuration:
+
+```env
 REDIS_HOST=localhost
 REDIS_PORT=6379
+```
 
+Additional configuration may include:
+
+```env
 DEFAULT_LANGUAGE=ru
 DEFAULT_LIMIT=15
-
 SUPER_ADMINS=123456789
 ```
 
-> ⚠️ Никогда не публикуйте настоящий `.env` или Telegram Bot Token в GitHub.
+> ⚠️ Never commit a real `.env` file, Telegram Bot Token, database password, or other secrets to GitHub.
 
 ---
 
-# 🗄️ База данных
+## 🗄️ Database
 
-Проект использует PostgreSQL для постоянного хранения данных.
+JARVIS uses **PostgreSQL** for persistent application data.
 
-Перед первым запуском необходимо создать базу данных:
-
-```text
-jarvis_db
-```
-
-После настройки подключения примените миграции:
+After configuring the database, apply migrations:
 
 ```bash
 alembic upgrade head
 ```
 
+Database schema changes are managed with Alembic.
+
 ---
 
-# 🔴 Redis
+## 🔴 Redis
 
-Redis используется для:
+Redis is used for temporary and runtime data, including:
 
-* пользовательских сессий;
-* кэширования;
-* временных состояний;
-* блокировок / ограничений;
-* режима технического обслуживания;
-* хранения некоторых runtime-данных.
+- User session state
+- Caching
+- Temporary application state
+- Rate limiting
+- Runtime locks
+- Maintenance mode state
 
-Пример конфигурации:
+Example:
 
 ```env
 REDIS_HOST=localhost
@@ -299,34 +412,32 @@ REDIS_PORT=6379
 
 ---
 
-# ▶️ Запуск
+## ▶️ Running the Project
 
-## Только Telegram-бот
+### Telegram Bot only
 
 ```bash
 python main.py
 ```
 
-Этот режим запускает Telegram polling и административные handlers.
+### Full application
 
-## Telegram Bot + Mini App
-
-Для полноценного режима рекомендуется:
+For the complete Telegram + Mini App environment:
 
 ```bash
 python main_combined.py
 ```
 
-Он объединяет:
+This combines:
 
-* Telegram Bot;
-* FastAPI;
-* Mini App;
-* API;
-* Redis;
-* PostgreSQL.
+- Telegram Bot
+- FastAPI
+- Telegram Mini App
+- REST API
+- PostgreSQL
+- Redis
 
-По умолчанию веб-сервис запускается на:
+The FastAPI server runs on the configured host and port, typically:
 
 ```text
 http://localhost:8000
@@ -334,196 +445,202 @@ http://localhost:8000
 
 ---
 
-# 🛡️ Администрирование
+## 🔌 API
 
-В проекте предусмотрена отдельная административная система.
+The backend exposes endpoints used by the Mini App.
 
-### Основные команды
-
-```text
-/stats
-/db_ping
-/active_users
-/ban
-/unban
-/maintenance
-/cached_regions
-/top_locations
-/session_info
-/user_lookup
-/latest_history
-/bot_uptime
-/sys_alerts
-```
-
-### SUPERADMIN-команды
+Main endpoints include:
 
 ```text
-/getdb
-/clear_cache
-/drop_database_data
-/flush_redis
-/force_broadcast
-/set_admin
-/rev_admin
+/api/regions
+/api/cities/{region_id}
+
+/api/weather/{city}
+
+/api/pois
+/api/pois/query
+/api/pois/{place_id}
+
+/api/route/build
+
+/api/favorites/toggle
+/api/favorites/me
+
+/api/auth/telegram
+
+/api/health
 ```
 
-Доступ к административным функциям контролируется системой ролей.
+The API separates the frontend from the database and external geographic services.
 
 ---
 
-# 🌐 Локализация
+## 🗺️ Geographic Data
 
-Интерфейс проекта поддерживает несколько языков.
+JARVIS uses **OpenStreetMap** and **Overpass API** for geographic data.
 
-В текущей системе переводов присутствуют:
+Overpass queries can be built around:
 
-* 🇷🇺 Русский
-* 🇬🇧 English
-* 🇸🇦 العربية
-* 🇪🇸 Español
-* 🇫🇷 Français
-* 🇩🇪 Deutsch
+- City
+- Region
+- Category
+- Geographic tags
 
-Локализация централизована в:
+Multiple Overpass endpoints can be configured to improve resilience.
 
-```text
-src/utils/languages.py
-```
-
-Добавление нового языка производится через расширение словаря переводов.
-
----
-
-# 🔐 Безопасность
-
-В проекте используется middleware безопасности для Telegram-бота.
-
-Также предусмотрены:
-
-* проверка прав администратора;
-* разделение обычных администраторов и SUPERADMIN;
-* защита административных действий;
-* ограничение частоты запросов;
-* Redis-based состояния;
-* обработка API ошибок;
-* отдельный maintenance mode.
-
----
-
-# 🧩 Overpass API
-
-Данные о географических объектах получаютcя через Overpass API.
-
-Можно указать собственный список серверов:
+Example:
 
 ```env
 OVERPASS_URLS=https://example.com/api/interpreter,https://example2.com/api/interpreter
 ```
 
-Если переменная не задана, используются серверы по умолчанию.
+---
 
-Это позволяет снизить зависимость от одного Overpass endpoint и повысить устойчивость поиска.
+## 🖼️ Place Images
+
+JARVIS can retrieve place images through Wikimedia services.
+
+Images can be processed and cached by the backend to reduce repeated external requests.
+
+Image retrieval is separated from the main places feed so that an unavailable image does not block the user interface.
 
 ---
 
-# 📊 Кэширование
+## ⚡ Performance
 
-Для ускорения работы используется кэширование данных OSM.
+The Mini App uses incremental loading to keep the interface responsive.
 
-Это позволяет:
+The places feed:
 
-* уменьшить количество запросов к Overpass;
-* ускорить повторный поиск;
-* снизить нагрузку на внешние API;
-* использовать ранее загруженные данные.
+- Loads a limited number of places per page
+- Uses pagination
+- Avoids unnecessary requests
+- Loads missing photos asynchronously
+- Caches previously loaded pages
+- Keeps navigation responsive
 
-Для администраторов предусмотрена отдельная команда очистки OSM-кэша.
+The backend also uses database queries and caching to reduce unnecessary external API requests.
 
 ---
 
-# 🧑‍💻 Для разработчиков
+## 🌐 Localization
 
-Основной принцип проекта — разделение логики по слоям:
+The project includes a localization system with language resources for:
+
+- 🇷🇺 Russian
+- 🇬🇧 English
+- 🇸🇦 Arabic
+- 🇪🇸 Spanish
+- 🇫🇷 French
+- 🇩🇪 German
+
+The Mini App also provides RU/BY interface localization where implemented.
+
+---
+
+## 🛡️ Security
+
+JARVIS includes several application security mechanisms:
+
+- Telegram authentication
+- Administrator permission checks
+- SUPERADMIN roles
+- Rate limiting
+- Redis-based state management
+- Protected administrative actions
+- Maintenance mode
+- API error handling
+- Separation of user and administrative functionality
+
+Sensitive configuration is provided through environment variables rather than source code.
+
+---
+
+## 🧑‍💻 Development
+
+The project follows a modular architecture.
+
+Frontend functionality is organized into:
 
 ```text
-handlers
-    ↓
-business logic
-    ↓
-database / cache / external APIs
+core/
+features/
+ui/
 ```
 
-Telegram-часть работает асинхронно, а FastAPI используется для веб-интерфейса и API.
+Backend functionality is organized into:
 
-При добавлении новых функций рекомендуется:
+```text
+database/
+handlers/
+middleware/
+routers/
+services/
+utils/
+```
 
-1. вынести Telegram-команды в соответствующий handler;
-2. не хранить runtime-состояние непосредственно в handler;
-3. использовать Redis для временных состояний;
-4. использовать PostgreSQL для постоянных данных;
-5. добавить локализацию;
-6. учитывать права пользователей;
-7. по возможности использовать существующую систему кэширования.
+When adding a new feature, developers should preferably:
 
----
-
-# 🛣️ Roadmap
-
-Проект находится в активной разработке.
-
-Планируемые направления:
-
-* [ ] расширение географии;
-* [ ] улучшение алгоритма построения маршрутов;
-* [ ] более глубокая интеграция Telegram Mini App;
-* [ ] улучшение поиска мест;
-* [ ] дополнительные категории достопримечательностей;
-* [ ] улучшение группового планирования;
-* [ ] расширенная статистика;
-* [ ] оптимизация кэширования;
-* [ ] улучшение UX;
-* [ ] автоматизация развёртывания.
+1. Keep frontend functionality inside the appropriate feature module.
+2. Keep shared UI helpers inside `ui/`.
+3. Keep application state inside the state module.
+4. Add backend endpoints to the appropriate router.
+5. Keep persistent data in PostgreSQL.
+6. Use Redis for temporary state where appropriate.
+7. Add localization for user-facing text.
+8. Respect Telegram authentication and permission boundaries.
+9. Reuse existing caching mechanisms where possible.
 
 ---
 
-# 🤝 Contributing
+## 🧪 Beta Status
 
-Pull Requests и предложения по улучшению приветствуются.
+JARVIS GeoBot is currently in **Beta**.
 
-Если вы нашли баг или хотите предложить новую функцию:
+The project is actively developed and tested. Interfaces, APIs, and individual features may continue to change between releases.
 
-1. Создайте Issue.
-2. Опишите проблему или идею.
-3. При необходимости приложите логи или пример воспроизведения.
-4. Для крупных изменений сначала обсудите архитектуру.
+The current beta focuses on:
 
----
+- Improving Mini App reliability
+- Improving places discovery
+- Improving image availability
+- Refining navigation
+- Improving route planning
+- Improving performance
+- Refining the overall user experience
 
-# 📜 License
+### Current Release
 
-Проект распространяется под лицензией **GNU AGPL v3.0**.
-
-Подробности находятся в файле [`LICENSE`](LICENSE).
-
----
-
-## ⭐ Автор
-
-**JARVIS GEO-BOT**
-Created by [@kirwjb](https://github.com/kirwjb)
-
-Если проект оказался полезным — поставьте ⭐ репозиторию.
-
----
-## 📱 Screenshots
-<img width="635" height="1280" alt="1000007189" src="https://github.com/user-attachments/assets/83d24a3e-08e7-46c6-ab1a-336c76cdf3ce" />
-<img width="691" height="1280" alt="1000007187" src="https://github.com/user-attachments/assets/26bb0828-4e83-45ce-a031-fc27b8a8a2ff" />
-<img width="635" height="1280" alt="1000007186" src="https://github.com/user-attachments/assets/21f82c42-55a6-4aa2-93ab-76960b3652e2" />
-<img width="633" height="1280" alt="1000007185" src="https://github.com/user-attachments/assets/f8e76df6-c3ad-4e7a-afc8-fd08018b8ee5" />
-
+**`v1.4126.060926 — Beta`**
 
 ---
 
-> 🗺️ **JARVIS GEO-BOT** — планируй поездку, собирай места, голосуй вместе с друзьями и получай готовый маршрут.
-> 
+## 🛣️ Roadmap
+
+Planned development directions include:
+
+- [ ] Expand geographic coverage
+- [ ] Improve place search and filtering
+- [ ] Improve photo coverage and fallback sources
+- [ ] Improve route optimization
+- [ ] Expand group trip functionality
+- [ ] Improve Telegram Mini App UX
+- [ ] Expand localization
+- [ ] Add additional geographic data sources
+- [ ] Improve caching and performance
+- [ ] Improve API reliability
+- [ ] Add more travel-oriented features
+
+---
+
+## 📜 License
+
+See [`LICENSE`](LICENSE) for license information.
+
+---
+
+## 🤖 JARVIS GeoBot
+
+**Discover places. Plan routes. Explore more.**
+
+Built as a Telegram-first travel experience with a focus on geographic discovery, route planning, and simple trip organization.
