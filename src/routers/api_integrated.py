@@ -133,7 +133,7 @@ async def get_cities(region_id:str):
     for name,cities in REGIONS.items():
         if normalize_region_id(name)==region_id:return [CityResponse(name=c,region=name) for c in cities]
     raise HTTPException(status_code=404,detail=get_text("choose_city_empty"))
-@app.get("/api/weather/{city}")
+@app.get("/api/weather/{city}",response_model=WeatherResponse)
 async def get_weather_endpoint(city:str):
     cached=await check_weather_cache(city)
     if cached:return WeatherResponse(city=city,temp=cached.get("temp"),description=cached.get("description",""),humidity=cached.get("humidity"),wind_speed=cached.get("wind_speed"),pressure=cached.get("pressure"),cached=True)
@@ -146,21 +146,18 @@ async def query_pois(query:POIQuery):
     if not query.city:raise HTTPException(status_code=400,detail="City required")
     limit,offset=normalize_limit(query.limit),normalize_offset(query.offset);cats=expand_poi_tags(query.tags) if query.tags else None
     async with AsyncSessionLocal() as session:
-        # Prefer the selected region, but fall back to city-only lookup because
-        # older cached records can contain a different spelling of the region.
         places=await get_places_from_db(session,region=query.region,city=query.city,category=cats,offset=offset,limit=limit)
         if not places:
             places=await get_places_from_db(session,city=query.city,category=cats,offset=offset,limit=limit)
-        # Hydrate the city from OSM only when the first page has no DB data.
         if not places and offset==0:
             osm=await get_attractions_osm(query.city,limit=100)
             if osm:
                 await upsert_osm_places(session,osm,city=query.city,region=query.region);await session.commit()
                 places=await get_places_from_db(session,region=query.region,city=query.city,category=cats,offset=offset,limit=limit)
-        # Every returned card gets a photo lookup when the DB has no cached photo.
-        for place in places:
-            await ensure_place_photo(session,place)
-        photos=await get_photos_map(session,[p.place_id for p in places]);pois=[place_to_dict(p,photos.get(p.place_id)) for p in places]
+        # Photo lookup is intentionally lazy. The page must render immediately;
+        # /api/pois/{id} hydrates a missing photo when the frontend requests it.
+        photos=await get_photos_map(session,[p.place_id for p in places])
+        pois=[place_to_dict(p,photos.get(p.place_id)) for p in places]
         await session.commit();return {"count":len(pois),"region":query.region,"city":query.city,"tags":query.tags,"offset":offset,"limit":limit,"pois":pois}
 
 @app.get("/api/pois")
