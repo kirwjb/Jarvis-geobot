@@ -41,6 +41,7 @@ function bind(){
  document.addEventListener('input',handleInput);
  $('#fab')?.addEventListener('click',()=>{go('route');renderRoute()});
  $('#bottom-nav')?.addEventListener('click',e=>{if(e.target.closest('[data-tab="weather"]')&&state.city&&state.region)loadWeather();});
+ window.addEventListener('jarvis:weather',()=>loadWeather());
  window.addEventListener('jarvis:language',()=>{renderTags();if(state.weather)renderWeather();loadRegions();});
  window.addEventListener('jarvis:favorites-changed',()=>loadFavorites());
  bindNavigation();initTelegramBackButton();installExtraNavigation();
