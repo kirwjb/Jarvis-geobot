@@ -2,8 +2,6 @@ name: Update Telegram auth frontend
 
 on:
   push:
-    paths:
-      - '.github/workflows/update-telegram-auth-frontend.yml'
   workflow_dispatch:
 
 jobs:
