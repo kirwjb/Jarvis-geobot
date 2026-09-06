@@ -6,12 +6,11 @@ from pathlib import Path
 from telebot.async_telebot import AsyncTeleBot
 import uvicorn
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from src.config import TOKEN
-from src.database.db import engine
-from src.database.models import Base
 from src.database.session_manager import redis_client
 from src.middleware.security import SecurityMiddleware
 from src.handlers.admin import register_admin_handlers
@@ -25,8 +24,8 @@ MEDIA_DIR = Path(__file__).resolve().parent / "media"
 INDEX_FILE = WEB_DIR / "index.html"
 MEDIA_DIR.mkdir(parents=True, exist_ok=True)
 
-# Static assets are mounted exactly once. The API router keeps / as its JSON root;
-# the Mini App is served by the frontend mount below.
+# Serve the Telegram Mini App at / and media assets at /media.
+# The API routes remain available under /api/*.
 fastapi_app.mount(
     "/media",
     StaticFiles(directory=str(MEDIA_DIR)),
@@ -74,6 +73,13 @@ async def lifespan(app: FastAPI):
 
 
 fastapi_app.router.lifespan_context = lifespan
+
+
+@fastapi_app.middleware("http")
+async def serve_geoapp_root(request: Request, call_next):
+    if request.method == "GET" and request.url.path == "/":
+        return FileResponse(INDEX_FILE, media_type="text/html")
+    return await call_next(request)
 
 
 if __name__ == "__main__":
