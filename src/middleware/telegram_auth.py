@@ -1,0 +1,122 @@
+"""Telegram Mini App initData validation middleware."""
+
+import hashlib
+import hmac
+import json
+import time
+from typing import Any
+from urllib.parse import parse_qsl
+
+from fastapi import Request
+from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
+
+
+class TelegramAuthError(ValueError):
+    """Raised when Telegram Mini App initData is missing or invalid."""
+
+
+def validate_init_data(
+    init_data: str,
+    bot_token: str,
+    *,
+    max_age: int = 86400,
+) -> dict[str, Any]:
+    """Validate Telegram WebApp initData and return the decoded user payload."""
+    if not init_data or not bot_token:
+        raise TelegramAuthError("Missing Telegram initData")
+
+    try:
+        pairs = parse_qsl(init_data, keep_blank_values=True, strict_parsing=True)
+    except ValueError as exc:
+        raise TelegramAuthError("Malformed Telegram initData") from exc
+
+    data = dict(pairs)
+    received_hash = data.pop("hash", None)
+    if not received_hash:
+        raise TelegramAuthError("Missing Telegram initData hash")
+
+    auth_date_raw = data.get("auth_date")
+    try:
+        auth_date = int(auth_date_raw)
+    except (TypeError, ValueError) as exc:
+        raise TelegramAuthError("Invalid Telegram auth_date") from exc
+
+    if max_age >= 0 and time.time() - auth_date > max_age:
+        raise TelegramAuthError("Expired Telegram initData")
+
+    data_check_string = "\n".join(
+        f"{key}={value}" for key, value in sorted(data.items())
+    )
+
+    secret_key = hmac.new(
+        b"WebAppData",
+        bot_token.encode("utf-8"),
+        hashlib.sha256,
+    ).digest()
+    calculated_hash = hmac.new(
+        secret_key,
+        data_check_string.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+    if not hmac.compare_digest(calculated_hash, received_hash):
+        raise TelegramAuthError("Invalid Telegram initData signature")
+
+    raw_user = data.get("user")
+    if not raw_user:
+        raise TelegramAuthError("Telegram user is missing")
+
+    try:
+        user = json.loads(raw_user)
+    except json.JSONDecodeError as exc:
+        raise TelegramAuthError("Invalid Telegram user payload") from exc
+
+    if not isinstance(user, dict) or not user.get("id"):
+        raise TelegramAuthError("Invalid Telegram user")
+
+    return user
+
+
+class TelegramAuthMiddleware(BaseHTTPMiddleware):
+    """Protect /api endpoints with Telegram Mini App initData."""
+
+    def __init__(self, app, bot_token: str, max_age: int = 86400):
+        super().__init__(app)
+        self.bot_token = bot_token
+        self.max_age = max_age
+
+    async def dispatch(self, request: Request, call_next):
+        path = request.url.path
+
+        # Health checks and the auth bootstrap endpoint must remain reachable
+        # without an already-established authenticated request.
+        if (
+            not path.startswith("/api/")
+            or path == "/api/auth/telegram"
+        ):
+            return await call_next(request)
+
+        authorization = request.headers.get("Authorization", "")
+        if not authorization.startswith("tma "):
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "Telegram authentication required"},
+            )
+
+        init_data = authorization[4:].strip()
+        try:
+            user = validate_init_data(
+                init_data,
+                self.bot_token,
+                max_age=self.max_age,
+            )
+        except TelegramAuthError as exc:
+            return JSONResponse(
+                status_code=401,
+                content={"detail": str(exc)},
+            )
+
+        request.state.telegram_user = user
+        request.state.telegram_user_id = int(user["id"])
+        return await call_next(request)
