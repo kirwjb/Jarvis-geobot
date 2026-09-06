@@ -4,7 +4,7 @@ import { $, esc, toast, haptic } from '../ui/helpers.js';
 import { go } from '../core/router.js';
 import { t } from '../ui/language.js';
 
-const PAGE=8; let page=0, hasNext=false, loading=false, key=''; const cache=new Map();
+const PAGE=8; let page=0, hasNext=false, loading=false, key=''; const cache=new Map(); const photoLoading=new Set();
 const queryKey=()=>JSON.stringify({region:state.region,city:state.city,tags:[...state.tags].sort()});
 
 export function poiCardMarkup(p){
@@ -13,21 +13,40 @@ export function poiCardMarkup(p){
 }
 function render(){const feed=$('#feed');if(!feed)return;feed.innerHTML=state.pois.length?state.pois.map(poiCardMarkup).join(''):`<div class="empty">${esc(t('nothing'))}</div>`;const box=$('#poi-pagination');if(box)box.innerHTML=(state.pois.length||hasNext)?`<button class="poi-page-btn" type="button" data-action="page-prev" data-page="${page-1}" ${page===0||loading?'disabled':''}>←</button><span class="poi-page-label">${esc(t('page'))} ${page+1}</span><button class="poi-page-btn" type="button" data-action="page-next" data-page="${page+1}" ${!hasNext||loading?'disabled':''}>→</button>`:'';}
 const loadingMarkup=()=>`<div class="jarvis-loading"><div class="jarvis-spinner"></div><div class="jarvis-loading-title">${esc(t('searching'))}</div></div>`;
+
+async function loadMissingPhotos(places){
+ const missing=places.filter(p=>p?.id&&!p.images?.medium&&!p.images?.thumb&&!p.image_url&&!photoLoading.has(String(p.id)));
+ for(let i=0;i<missing.length;i+=3){
+   await Promise.all(missing.slice(i,i+3).map(async p=>{
+     const id=String(p.id);photoLoading.add(id);
+     try{
+       const detail=await request(`/pois/${encodeURIComponent(id)}`);
+       const im=detail?.images?.medium||detail?.images?.thumb||detail?.image_url;
+       if(!im)return;
+       Object.assign(p,detail);
+       const card=[...document.querySelectorAll('#feed .poi-card')].find(el=>el.dataset.id===id);
+       const media=card?.querySelector('.poi-img');
+       if(media)media.innerHTML=`<img src="${esc(im)}" alt="${esc(detail.name||p.name||t('place'))}" loading="lazy" decoding="async">`;
+     }catch(_){
+       // Missing source photo must not block cards or pagination.
+     }finally{photoLoading.delete(id);}
+   }));
+ }
+}
+
 export async function loadPlaces(){go('cards');page=0;cache.clear();key=queryKey();state.pois=[];hasNext=false;$('#feed').innerHTML=loadingMarkup();$('#cards-title').textContent=state.city||t('places');await loadPage(0);}
 
 export async function loadPage(next){
  if(next<0||loading)return;
  const k=queryKey();
  if(k!==key){cache.clear();key=k;page=0;hasNext=false;if(next!==0)next=0;}
- if(cache.has(next)){const c=cache.get(next);page=next;state.pois=c.places;hasNext=c.hasNext;render();return;}
+ if(cache.has(next)){const c=cache.get(next);page=next;state.pois=c.places;hasNext=c.hasNext;render();void loadMissingPhotos(state.pois);return;}
  loading=true;render();
  try{
-   // Always use the same backend query for every page. It returns PAGE+1
-   // records so the extra record is used only to determine whether a next page exists.
    const d=await request('/pois/query',{method:'POST',body:JSON.stringify({region:state.region,city:state.city,tags:[...state.tags],limit:PAGE+1,offset:next*PAGE})});
    const pois=Array.isArray(d?.pois)?d.pois:[];
    const c={places:pois.slice(0,PAGE),hasNext:pois.length>PAGE};
-   cache.set(next,c);page=next;state.pois=c.places;hasNext=c.hasNext;render();
+   cache.set(next,c);page=next;state.pois=c.places;hasNext=c.hasNext;render();void loadMissingPhotos(state.pois);
  }catch(e){toast(`${t('places_failed')}: ${e.message}`)}finally{loading=false;render();}
 }
 
