@@ -6,10 +6,8 @@
   async function loadPhoto(card) {
     const id = card?.dataset?.poiId;
     if (!id || loaded.has(id) || pending.has(id)) return;
-
     const box = card.querySelector('.poi-img');
     if (!box) return;
-
     let img = box.querySelector('img');
     if (!img) {
       img = document.createElement('img');
@@ -19,27 +17,20 @@
       img.style.display = 'none';
       box.appendChild(img);
     }
-
     pending.add(id);
     try {
       const initData = window.Telegram?.WebApp?.initData || '';
-      const response = await fetch(`${API}/pois/${encodeURIComponent(id)}/photo`, {
-        method: 'POST',
-        headers: {
-          Accept: 'application/json',
-          ...(initData ? { Authorization: `tma ${initData}` } : {})
-        }
+      const response = await fetch(`${API}/pois/${encodeURIComponent(id)}/photos`, {
+        method: 'GET',
+        headers: { Accept: 'application/json', ...(initData ? { Authorization: `tma ${initData}` } : {}) }
       });
       if (!response.ok) return;
       const data = await response.json();
-      const photo = data?.photo;
+      const photo = data?.photos?.[0];
       const url = photo?.local_url_medium || photo?.local_url_thumb || photo?.original_url;
       if (!url) return;
-
-      img.onload = () => {
-        img.style.display = '';
-        box.querySelector('svg')?.remove();
-      };
+      img.onload = () => { img.style.display = ''; box.querySelector('svg')?.remove(); };
+      img.onerror = () => { img.style.display = 'none'; };
       img.src = url;
       loaded.add(id);
     } catch (error) {
