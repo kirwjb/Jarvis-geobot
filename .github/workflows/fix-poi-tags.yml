@@ -23,12 +23,43 @@ jobs:
 
           old = '''    return "misc"\n\n\ndef normalize_limit(value: int) -> int:\n'''
           new = '''    return "misc"\n\n\nTAG_CATEGORY_MAP = {\n    "architecture": {\n        "castle",\n        "church",\n        "monument",\n        "manor",\n        "gallery",\n        "ruins",\n    },\n    "nature": {\n        "park",\n        "viewpoint",\n        "ruins",\n    },\n    "museum": {"museum"},\n    "church": {"church"},\n    "castle": {"castle"},\n    "monument": {"monument"},\n    "park": {"park"},\n}\n\n\ndef expand_poi_tags(tags: list[str]) -> set[str]:\n    categories: set[str] = set()\n    for tag in tags:\n        key = str(tag or "").strip().lower()\n        categories.update(TAG_CATEGORY_MAP.get(key, {normalize_category(key)}))\n    return categories\n\n\ndef normalize_limit(value: int) -> int:\n'''
-          if old not in text:\n              raise SystemExit('Could not find normalize_category insertion point')\n          text = text.replace(old, new, 1)\n\n          old = '''    category: Optional[str] = None,\n    offset: int = 0,\n'''
+          if old not in text:
+              raise SystemExit('Could not find normalize_category insertion point')
+          text = text.replace(old, new, 1)
+
+          old = '''    category: Optional[str] = None,\n    offset: int = 0,\n'''
           new = '''    category: Optional[str | list[str] | set[str]] = None,\n    offset: int = 0,\n'''
-          if old not in text:\n              raise SystemExit('Could not find category annotation')\n          text = text.replace(old, new, 1)\n\n          old = '''    if category:\n        query = query.where(Place.category == category)\n'''
+          if old not in text:
+              raise SystemExit('Could not find category annotation')
+          text = text.replace(old, new, 1)
+
+          old = '''    if category:\n        query = query.where(Place.category == category)\n'''
           new = '''    if category:\n        if isinstance(category, (list, set, tuple)):\n            query = query.where(Place.category.in_(category))\n        else:\n            query = query.where(Place.category == category)\n'''
-          if old not in text:\n              raise SystemExit('Could not find category filter')\n          text = text.replace(old, new, 1)\n\n          old = '''    limit = normalize_limit(query.limit)\n    offset = normalize_offset(query.offset)\n\n    async with AsyncSessionLocal() as session:\n        places = await get_places_from_db(\n            session,\n            region=query.region,\n            city=query.city,\n            offset=offset,\n            limit=limit,\n        )\n'''
+          if old not in text:
+              raise SystemExit('Could not find category filter')
+          text = text.replace(old, new, 1)
+
+          old = '''    limit = normalize_limit(query.limit)\n    offset = normalize_offset(query.offset)\n\n    async with AsyncSessionLocal() as session:\n        places = await get_places_from_db(\n            session,\n            region=query.region,\n            city=query.city,\n            offset=offset,\n            limit=limit,\n        )\n'''
           new = '''    limit = normalize_limit(query.limit)\n    offset = normalize_offset(query.offset)\n    tag_categories = expand_poi_tags(query.tags) if query.tags else None\n\n    async with AsyncSessionLocal() as session:\n        places = await get_places_from_db(\n            session,\n            region=query.region,\n            city=query.city,\n            category=tag_categories,\n            offset=offset,\n            limit=limit,\n        )\n'''
-          if old not in text:\n              raise SystemExit('Could not find initial POI query block')\n          text = text.replace(old, new, 1)\n\n          old = '''                places = await get_places_from_db(\n                    session,\n                    region=query.region,\n                    city=query.city,\n                    offset=0,\n                    limit=MAX_POI_LIMIT,\n                )\n\n        # Фильтр по категориям, если клиент передал теги.\n        if query.tags:\n            normalized_tags = {\n                normalize_category(tag) for tag in query.tags\n            }\n            places = [\n                place\n                for place in places\n                if place.category in normalized_tags\n            ]\n'''
+          if old not in text:
+              raise SystemExit('Could not find initial POI query block')
+          text = text.replace(old, new, 1)
+
+          old = '''                places = await get_places_from_db(\n                    session,\n                    region=query.region,\n                    city=query.city,\n                    offset=0,\n                    limit=MAX_POI_LIMIT,\n                )\n\n        # Фильтр по категориям, если клиент передал теги.\n        if query.tags:\n            normalized_tags = {\n                normalize_category(tag) for tag in query.tags\n            }\n            places = [\n                place\n                for place in places\n                if place.category in normalized_tags\n            ]\n'''
           new = '''                places = await get_places_from_db(\n                    session,\n                    region=query.region,\n                    city=query.city,\n                    category=tag_categories,\n                    offset=0,\n                    limit=MAX_POI_LIMIT,\n                )\n'''
-          if old not in text:\n              raise SystemExit('Could not find post-import tag filter block')\n          text = text.replace(old, new, 1)\n\n          path.write_text(text, encoding='utf-8')\n          PY\n      - name: Commit fix\n        run: |\n          git config user.name "github-actions[bot]"\n          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"\n          git add src/routers/api_integrated.py\n          git diff --cached --quiet && exit 0\n          git commit -m "fix(poi): apply frontend tags to database filtering [poi-tags-fix]"\n          git push\n
+          if old not in text:
+              raise SystemExit('Could not find post-import tag filter block')
+          text = text.replace(old, new, 1)
+
+          path.write_text(text, encoding='utf-8')
+          PY
+      - name: Commit fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/routers/api_integrated.py
+          git diff --cached --quiet && exit 0
+          git commit -m "fix(poi): apply frontend tags to database filtering [poi-tags-fix]"
+          git push
+
+# temporary patcher; remove after successful run
