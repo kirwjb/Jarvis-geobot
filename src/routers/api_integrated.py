@@ -19,11 +19,12 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, select
 
-from src.config import REGIONS
+from src.config import REGIONS, TOKEN
 from src.database.db import AsyncSessionLocal
 from src.database.models import Favorite, Place, PlacePhoto, User
 from src.database.session_manager import redis_client
 from src.database.repositories import photo_repo
+from src.middleware.telegram_auth import TelegramAuthError, TelegramAuthMiddleware, validate_init_data
 from src.services.map_service import build_google_maps_link
 from src.services.optimizer_service import optimizeRoutePoints
 from src.services.parser_service import get_attractions_osm
@@ -100,7 +101,6 @@ class RouteResponse(BaseModel):
 
 
 class FavoriteToggle(BaseModel):
-    user_id: int
     poi_id: str
 
 
@@ -120,6 +120,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(TelegramAuthMiddleware, bot_token=TOKEN, max_age=86400)
 
 
 # ============================================================
@@ -311,13 +312,12 @@ async def ensure_place_photo(
         place_id=place.place_id,
         lat=place.lat,
         lon=place.lon,
-        category=place.category,  
+        category=place.category,
     )
-    
+
     if not photo_data:
         return None
 
-    # Используем репозиторий, чтобы не дублировать логику сохранения.
     photo = await photo_repo.save_place_photo(
         session,
         place_id=place.place_id,
@@ -567,7 +567,6 @@ async def query_pois(query: POIQuery):
             limit=limit,
         )
 
-        # Если город ещё не импортирован — тянем из OSM.
         if not places and offset == 0:
             log(
                 f"Places DB empty for {query.city}. "
@@ -594,9 +593,6 @@ async def query_pois(query: POIQuery):
                     limit=MAX_POI_LIMIT,
                 )
 
-        # Гарантируем наличие фото для каждого места.
-        # ВАЖНО: это может быть медленно при первом запросе,
-        # потому что для каждого места может быть запрос к Wikimedia.
         for place in places:
             await ensure_place_photo(session, place)
 
@@ -727,7 +723,6 @@ async def build_route(req: RouteRequest):
             ),
         )
 
-    # Убираем пустые и дублирующиеся ID, сохраняя порядок.
     requested_ids = []
     seen_ids = set()
     for poi_id in req.poi_ids:
@@ -806,12 +801,26 @@ async def build_route(req: RouteRequest):
 # FAVORITES
 # ============================================================
 @app.post("/api/favorites/toggle")
-async def toggle_favorite(data: FavoriteToggle):
+async def toggle_favorite(data: FavoriteToggle, request: Request):
+    user_id = request.state.telegram_user_id
+
     async with AsyncSessionLocal() as session:
+        user_result = await session.execute(
+            select(User).where(User.user_id == user_id)
+        )
+        user = user_result.scalar_one_or_none()
+        if user is None:
+            user = User(
+                user_id=user_id,
+                username=request.state.telegram_user.get("username", ""),
+            )
+            session.add(user)
+            await session.flush()
+
         result = await session.execute(
             select(Favorite)
             .where(
-                Favorite.user_id == data.user_id,
+                Favorite.user_id == user_id,
                 Favorite.place_id == data.poi_id,
             )
             .limit(1)
@@ -825,7 +834,7 @@ async def toggle_favorite(data: FavoriteToggle):
             await session.commit()
             return {
                 "poi_id": data.poi_id,
-                "user_id": data.user_id,
+                "user_id": user_id,
                 "favorited": False,
             }
 
@@ -837,7 +846,7 @@ async def toggle_favorite(data: FavoriteToggle):
             )
 
         favorite = Favorite(
-            user_id=data.user_id,
+            user_id=user_id,
             place_id=place.place_id,
             place_name=place.name,
             address=place.address or "",
@@ -848,13 +857,14 @@ async def toggle_favorite(data: FavoriteToggle):
         await session.commit()
         return {
             "poi_id": data.poi_id,
-            "user_id": data.user_id,
+            "user_id": user_id,
             "favorited": True,
         }
 
 
-@app.get("/api/favorites/{user_id}")
-async def get_favorites(user_id: int):
+@app.get("/api/favorites/me")
+async def get_favorites(request: Request):
+    user_id = request.state.telegram_user_id
     async with AsyncSessionLocal() as session:
         result = await session.execute(
             select(Favorite)
@@ -894,36 +904,20 @@ async def health():
 # ============================================================
 @app.post("/api/auth/telegram")
 async def auth_telegram(request: Request):
-    data = await request.json()
-    init_data = data.get("initData", "")
-    if "user=" not in init_data:
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid initData",
-        )
+    authorization = request.headers.get("Authorization", "")
+    if not authorization.startswith("tma "):
+        raise HTTPException(status_code=401, detail="Telegram authentication required")
 
     try:
-        import urllib.parse
-        parsed = urllib.parse.parse_qs(init_data)
-        user_json = parsed.get("user", ["{}"])[0]
-        user_data = json.loads(user_json)
-    except (
-        json.JSONDecodeError,
-        TypeError,
-        ValueError,
-    ) as exc:
-        error(f"Ошибка разбора Telegram initData: {exc}")
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid initData",
+        user_data = validate_init_data(
+            authorization[4:].strip(),
+            TOKEN,
+            max_age=86400,
         )
+    except TelegramAuthError as exc:
+        raise HTTPException(status_code=401, detail=str(exc)) from exc
 
-    user_id = user_data.get("id")
-    if not user_id:
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid Telegram user",
-        )
+    user_id = int(user_data["id"])
     username = user_data.get("username", "")
 
     async with AsyncSessionLocal() as session:
