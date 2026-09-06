@@ -3,7 +3,6 @@
 import hashlib
 import hmac
 import json
-import os
 import time
 from typing import Any
 from urllib.parse import parse_qsl
@@ -43,7 +42,8 @@ def validate_init_data(
     except (TypeError, ValueError) as exc:
         raise TelegramAuthError("Invalid Telegram auth_date") from exc
 
-    if max_age >= 0 and time.time() - auth_date > max_age:
+    age = time.time() - auth_date
+    if max_age >= 0 and (age < -60 or age > max_age):
         raise TelegramAuthError("Expired Telegram initData")
 
     data_check_string = "\n".join(
@@ -76,53 +76,26 @@ def validate_init_data(
     if not isinstance(user, dict) or not user.get("id"):
         raise TelegramAuthError("Invalid Telegram user")
 
+    try:
+        user["id"] = int(user["id"])
+    except (TypeError, ValueError) as exc:
+        raise TelegramAuthError("Invalid Telegram user id") from exc
+
     return user
 
 
 class TelegramAuthMiddleware(BaseHTTPMiddleware):
     """Protect /api endpoints with Telegram Mini App initData."""
 
-    def __init__(
-        self,
-        app,
-        bot_token: str,
-        max_age: int = 86400,
-        enabled: bool | None = None,
-    ):
+    def __init__(self, app, bot_token: str, max_age: int = 86400):
         super().__init__(app)
         self.bot_token = bot_token
         self.max_age = max_age
-        self.enabled = (
-            os.getenv("TELEGRAM_AUTH_REQUIRED", "0").strip().lower()
-            in {"1", "true", "yes", "on"}
-            if enabled is None
-            else enabled
-        )
 
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
 
-        if not self.enabled:
-            # Temporary compatibility for the current frontend until it starts
-            # sending Authorization: tma <initData>.
-            if path == "/api/favorites/toggle" and request.method == "POST":
-                try:
-                    payload = json.loads((await request.body()).decode("utf-8"))
-                    if payload.get("user_id"):
-                        request.state.telegram_user_id = int(payload["user_id"])
-                except (json.JSONDecodeError, TypeError, ValueError):
-                    pass
-            elif path.startswith("/api/favorites/"):
-                legacy_user_id = path.rsplit("/", 1)[-1]
-                if legacy_user_id.isdigit():
-                    request.state.telegram_user_id = int(legacy_user_id)
-                    request.scope["path"] = "/api/favorites/me"
-            return await call_next(request)
-
-        if (
-            not path.startswith("/api/")
-            or path == "/api/auth/telegram"
-        ):
+        if not path.startswith("/api/"):
             return await call_next(request)
 
         authorization = request.headers.get("Authorization", "")
@@ -145,5 +118,5 @@ class TelegramAuthMiddleware(BaseHTTPMiddleware):
             )
 
         request.state.telegram_user = user
-        request.state.telegram_user_id = int(user["id"])
+        request.state.telegram_user_id = user["id"]
         return await call_next(request)
