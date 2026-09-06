@@ -1,6 +1,9 @@
 name: Update Telegram auth frontend
 
 on:
+  push:
+    paths:
+      - '.github/workflows/update-telegram-auth-frontend.yml'
   workflow_dispatch:
 
 jobs:
@@ -52,7 +55,8 @@ jobs:
 """
           if marker not in text:
               raise SystemExit("toggleFav marker not found")
-          text = text.replace(marker, auth_fn + marker, 1)
+          if "async function authenticateTelegram()" not in text:
+              text = text.replace(marker, auth_fn + marker, 1)
 
           old = """async function toggleFav(id) {
   const userId = getTelegramUserId();
@@ -74,9 +78,8 @@ jobs:
       body: JSON.stringify({ poi_id: String(id) })
     });
 """
-          if old not in text:
-              raise SystemExit("toggleFav body not found")
-          text = text.replace(old, new, 1)
+          if old in text:
+              text = text.replace(old, new, 1)
 
           old = """async function loadFavorites() {
   const userId = getTelegramUserId();
@@ -89,9 +92,8 @@ jobs:
   try {
     const data = await apiFetch('/favorites/me');
 """
-          if old not in text:
-              raise SystemExit("loadFavorites body not found")
-          text = text.replace(old, new, 1)
+          if old in text:
+              text = text.replace(old, new, 1)
 
           old = """  await Promise.all([loadRegions(), loadFavorites()]);
 """
@@ -100,9 +102,8 @@ jobs:
 
   await Promise.all([loadRegions(), loadFavorites()]);
 """
-          if old not in text:
-              raise SystemExit("init bootstrap block not found")
-          text = text.replace(old, new, 1)
+          if old in text:
+              text = text.replace(old, new, 1)
 
           path.write_text(text, encoding="utf-8")
       - name: Validate frontend syntax
