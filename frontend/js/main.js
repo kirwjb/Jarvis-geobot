@@ -5,7 +5,7 @@ import { applyLanguage, toggleLanguage } from './ui/language.js';
 import { go, initTelegramBackButton, bindNavigation } from './core/router.js';
 import { loadRegions, pickRegion, pickCity, toggleTag, filterRegions, filterCities, renderTags, startPlaces } from './features/travel.js';
 import { loadWeather, renderWeather } from './features/weather.js';
-import { loadFavorites, toggleFavorite, toggleRoute, openDetail, loadPage, updateFab } from './features/places.js?v=20260906-1';
+import { loadFavorites, toggleFavorite, toggleRoute, openDetail, loadPage, updateFab, searchPlaces, shufflePlaces } from './features/places.js?v=20260907-2';
 import { renderRoute, removeRoute, buildRoute, copyRoute, openRoute } from './features/route.js';
 import { installExtraNavigation } from './features/navigation-extra.js';
 
@@ -26,6 +26,7 @@ function handleClick(event){
  if(action==='choose-city'){state.mode='weather';go('regions');return}
  if(action==='weather-refresh'){loadWeather();return}
  if(action==='page-prev'||action==='page-next'){loadPage(Number(el.dataset.page));return}
+ if(action==='shuffle'){event.preventDefault();shufflePlaces();return}
  if(action==='favorite'){event.stopPropagation();toggleFavorite(el.dataset.id);return}
  if(action==='route'){event.stopPropagation();toggleRoute(el.dataset.id);return}
  if(action==='detail'){openDetail(el.dataset.id);return}
@@ -35,7 +36,11 @@ function handleClick(event){
  if(action==='copy-route'){copyRoute(el.dataset.url);return}
  if(action==='close-modal'){el.closest('.jarvis-modal')?.remove();return}
 }
-function handleInput(event){if(event.target.matches('#region-search'))filterRegions(event.target.value);if(event.target.matches('#city-search'))filterCities(event.target.value);}
+function handleInput(event){
+ if(event.target.matches('#region-search'))filterRegions(event.target.value);
+ if(event.target.matches('#city-search'))filterCities(event.target.value);
+ if(event.target.matches('#poi-search'))searchPlaces(event.target.value);
+}
 function bind(){
  document.addEventListener('click',handleClick);
  document.addEventListener('input',handleInput);
