@@ -5,7 +5,7 @@ import { applyLanguage, toggleLanguage } from './ui/language.js';
 import { go, initTelegramBackButton, bindNavigation } from './core/router.js';
 import { loadRegions, pickRegion, pickCity, toggleTag, filterRegions, filterCities, renderTags, startPlaces } from './features/travel.js';
 import { loadWeather, renderWeather } from './features/weather.js';
-import { loadFavorites, toggleFavorite, toggleRoute, openDetail, loadPage, updateFab, searchPlaces, shufflePlaces } from './features/places.js?v=20260907-2';
+import { loadFavorites, toggleFavorite, toggleRoute, openDetail, loadPage, updateFab, searchPlaces, shufflePlaces } from './features/places.js';
 import { renderRoute, removeRoute, buildRoute, copyRoute, openRoute } from './features/route.js';
 import { installExtraNavigation } from './features/navigation-extra.js';
 
@@ -15,7 +15,7 @@ function handleClick(event){
  const el=event.target.closest('[data-action]');
  if(!el||!document.body.contains(el))return;
  const action=el.dataset.action;
- if(action==='theme'){event.preventDefault();toggleTheme();return}
+ if(action==='theme'){event.preventDefault();event.stopPropagation();toggleTheme();persist();return}
  if(action==='language'){event.preventDefault();toggleLanguage();return}
  if(action==='start'){event.preventDefault();go('regions');loadRegions();return}
  if(action==='back'){event.preventDefault();go(el.dataset.screen||'regions');return}
