@@ -5,7 +5,7 @@ from pathlib import Path
 
 from telebot.async_telebot import AsyncTeleBot
 import uvicorn
-from fastapi import Request
+from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
