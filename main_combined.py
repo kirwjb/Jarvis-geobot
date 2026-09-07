@@ -5,8 +5,7 @@ from pathlib import Path
 
 from telebot.async_telebot import AsyncTeleBot
 import uvicorn
-
-from fastapi import FastAPI, Request
+from fastapi import Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -18,7 +17,6 @@ from src.handlers.cache_admin import register_cache_admin_handler
 from src.handlers.start_help import register_start_help_handlers
 from src.utils.languages import get_text
 from src.utils.utils import log, error
-
 from src.routers.api_integrated import app as fastapi_app
 from src.routers.photo_warmup import router as photo_warmup_router
 from src.routers.geo_feed import router as geo_feed_router
@@ -29,13 +27,13 @@ INDEX_FILE = WEB_DIR / "index.html"
 MEDIA_DIR.mkdir(parents=True, exist_ok=True)
 
 fastapi_app.mount("/media", StaticFiles(directory=str(MEDIA_DIR)), name="media")
-fastapi_app.mount("/", StaticFiles(directory=str(WEB_DIR), html=True), name="geoapp")
+# API routers must be registered before the frontend catch-all mount.
 fastapi_app.include_router(photo_warmup_router)
 fastapi_app.include_router(geo_feed_router)
+fastapi_app.mount("/", StaticFiles(directory=str(WEB_DIR), html=True), name="geoapp")
 
 logger = logging.getLogger("telebot")
 logger.setLevel(logging.CRITICAL)
-
 bot = AsyncTeleBot(TOKEN)
 security_mw = SecurityMiddleware(redis_client)
 bot.setup_middleware(security_mw)
@@ -58,10 +56,8 @@ async def lifespan(app: FastAPI):
         yield
     finally:
         bot_task.cancel()
-        try:
-            await bot_task
-        except asyncio.CancelledError:
-            pass
+        try: await bot_task
+        except asyncio.CancelledError: pass
         log(get_text("bot_stopped"))
 
 fastapi_app.router.lifespan_context = lifespan
