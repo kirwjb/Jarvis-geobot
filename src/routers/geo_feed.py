@@ -1,12 +1,11 @@
 """Next-generation POI feed: full OSM import, search, shuffle and page counts."""
 import hashlib
 from typing import Optional
-
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import func, select
-
 from src.database.db import AsyncSessionLocal
 from src.database.models import Place, PlacePhoto
+from src.database.session_manager import redis_client
 from src.services.parser_service import get_attractions_osm
 from src.services.photo_url_service import find_photo_url
 
@@ -20,23 +19,19 @@ VALID_CATEGORIES = {"castle", "church", "museum", "monument", "park", "gallery",
 def categories(tags: list[str]) -> set[str]:
     result = set()
     for tag in tags:
-        key = str(tag or "").strip().lower()
-        result.update(TAG_CATEGORY_MAP.get(key, {key}))
+        key = str(tag or "").strip().lower(); result.update(TAG_CATEGORY_MAP.get(key, {key}))
     return result
 
 def normalize_category(value: str) -> str:
-    value = (value or "").strip().lower()
-    return CATEGORY_MAP.get(value, value if value in VALID_CATEGORIES else "misc")
+    value = (value or "").strip().lower(); return CATEGORY_MAP.get(value, value if value in VALID_CATEGORIES else "misc")
 
 def place_dict(place: Place, photo: PlacePhoto | None = None) -> dict:
-    url = photo.original_url if photo else None
-    images = {"thumb": url, "medium": url, "original": url} if url else None
+    url = photo.original_url if photo else None; images = {"thumb": url, "medium": url, "original": url} if url else None
     return {"id": place.place_id, "name": place.name, "city": place.city, "region": place.region, "address": place.address or "", "category": place.category, "lat": float(place.lat), "lon": float(place.lon), "hours": place.hours, "phone": place.phone, "image_url": url, "images": images}
 
 async def ensure_city_data(session, city: str, region: str) -> None:
-    exists = await session.execute(select(func.count(Place.id)).where(Place.city == city))
-    if exists.scalar_one() > 0:
-        return
+    cache_key = f"geo-feed:osm:{city.lower()}"
+    if await redis_client.get(cache_key): return
     attractions = await get_attractions_osm(city, limit=0)
     for attr in attractions:
         pid, name = attr.get("id"), attr.get("name"); lat, lon = attr.get("lat"), attr.get("lon")
@@ -44,10 +39,13 @@ async def ensure_city_data(session, city: str, region: str) -> None:
         row = await session.execute(select(Place).where(Place.place_id == pid).limit(1)); place = row.scalar_one_or_none()
         if place is None:
             session.add(Place(place_id=pid, name=name, city=city, region=region, address=attr.get("address") or "", category=normalize_category(attr.get("type", "misc")), lat=float(lat), lon=float(lon), hours=attr.get("hours"), phone=attr.get("phone")))
+        else:
+            place.name=name; place.city=city; place.region=region; place.address=attr.get("address") or ""; place.category=normalize_category(attr.get("type", "misc")); place.lat=float(lat); place.lon=float(lon); place.hours=attr.get("hours"); place.phone=attr.get("phone")
     await session.flush()
+    await redis_client.setex(cache_key, 86400, "1")
 
 async def hydrate_urls(session, places: list[Place]) -> dict[str, PlacePhoto]:
-    result: dict[str, PlacePhoto] = {}
+    result = {}
     for place in places:
         row = await session.execute(select(PlacePhoto).where(PlacePhoto.place_id == place.place_id).order_by(PlacePhoto.id.asc()).limit(1)); photo = row.scalar_one_or_none()
         if photo and photo.original_url:
@@ -57,30 +55,28 @@ async def hydrate_urls(session, places: list[Place]) -> dict[str, PlacePhoto]:
         if photo is None:
             photo = PlacePhoto(place_id=place.place_id, source=data["source"], original_url=data["original_url"], local_url_thumb=None, local_url_medium=None, author=data.get("author"), license=data.get("license")); session.add(photo)
         else:
-            photo.source = data["source"]; photo.original_url = data["original_url"]; photo.local_url_thumb = None; photo.local_url_medium = None; photo.author = data.get("author"); photo.license = data.get("license")
+            photo.source=data["source"]; photo.original_url=data["original_url"]; photo.local_url_thumb=None; photo.local_url_medium=None; photo.author=data.get("author"); photo.license=data.get("license")
         result[place.place_id] = photo
     await session.flush(); return result
 
 @router.get("/pois/feed")
 async def feed(region: str, city: str, tags: Optional[str] = None, search: str = "", page: int = 0, page_size: int = PAGE_SIZE, shuffle: str = ""):
-    page = max(page, 0); page_size = min(max(page_size, 1), MAX_PAGE_SIZE)
-    tag_list = [x.strip() for x in (tags or "").split(",") if x.strip()]; cats = categories(tag_list)
-    seed = shuffle or hashlib.sha256(f"{city}|{tags or ''}".encode()).hexdigest()[:16]
+    page=max(page,0); page_size=min(max(page_size,1),MAX_PAGE_SIZE); tag_list=[x.strip() for x in (tags or "").split(",") if x.strip()]; cats=categories(tag_list)
+    seed=shuffle or hashlib.sha256(f"{city}|{tags or ''}".encode()).hexdigest()[:16]
     async with AsyncSessionLocal() as session:
-        await ensure_city_data(session, city, region)
-        filters = [Place.city == city]
+        await ensure_city_data(session,city,region)
+        filters=[Place.city==city]
         if cats: filters.append(Place.category.in_(cats))
         if search.strip():
-            term = f"%{search.strip()}%"; filters.append((Place.name.ilike(term)) | (Place.address.ilike(term)))
-        count = await session.execute(select(func.count(Place.id)).where(*filters)); total = int(count.scalar_one()); pages = (total + page_size - 1) // page_size if total else 0
-        order_expr = func.md5(Place.place_id + seed)
-        rows = await session.execute(select(Place).where(*filters).order_by(order_expr).offset(page * page_size).limit(page_size))
-        places = list(rows.scalars().all()); photos = await hydrate_urls(session, places); await session.commit()
-        return {"region": region, "city": city, "tags": tag_list, "search": search, "page": page, "page_size": page_size, "total": total, "pages": pages, "has_next": page + 1 < pages, "shuffle": seed, "pois": [place_dict(p, photos.get(p.place_id)) for p in places]}
+            term=f"%{search.strip()}%"; filters.append((Place.name.ilike(term)) | (Place.address.ilike(term)))
+        count=await session.execute(select(func.count(Place.id)).where(*filters)); total=int(count.scalar_one()); pages=(total+page_size-1)//page_size if total else 0
+        order_expr=func.md5(Place.place_id + seed)
+        rows=await session.execute(select(Place).where(*filters).order_by(order_expr).offset(page*page_size).limit(page_size)); places=list(rows.scalars().all()); photos=await hydrate_urls(session,places); await session.commit()
+        return {"region":region,"city":city,"tags":tag_list,"search":search,"page":page,"page_size":page_size,"total":total,"pages":pages,"has_next":page+1<pages,"shuffle":seed,"pois":[place_dict(p,photos.get(p.place_id)) for p in places]}
 
 @router.get("/pois/{place_id}")
 async def detail(place_id: str):
     async with AsyncSessionLocal() as session:
-        row = await session.execute(select(Place).where(Place.place_id == place_id).limit(1)); place = row.scalar_one_or_none()
-        if place is None: raise HTTPException(status_code=404, detail="Place not found")
-        photos = await hydrate_urls(session, [place]); await session.commit(); return place_dict(place, photos.get(place.place_id))
+        row=await session.execute(select(Place).where(Place.place_id==place_id).limit(1)); place=row.scalar_one_or_none()
+        if place is None: raise HTTPException(status_code=404,detail="Place not found")
+        photos=await hydrate_urls(session,[place]); await session.commit(); return place_dict(place,photos.get(place.place_id))
