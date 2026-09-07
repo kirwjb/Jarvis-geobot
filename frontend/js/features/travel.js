@@ -2,7 +2,7 @@ import { state, TAGS, persist } from '../core/state.js';
 import { request } from '../core/api.js';
 import { $, esc, toast, haptic } from '../ui/helpers.js';
 import { go } from '../core/router.js';
-import { loadPlaces } from './places.js?v=20260907-3';
+import { loadPlaces } from './places.js?v=20260907-4';
 import { t } from '../ui/language.js';
 
 export function renderRegions(list=state.regions){const grid=$('#regions-grid');if(!grid)return;grid.innerHTML=list.length?list.map(r=>`<button class="card" type="button" data-action="region" data-id="${esc(r.id)}"><span>${esc(r.name)}</span></button>`).join(''):`<div class="empty">${esc(t('nothing'))}</div>`;}
@@ -30,4 +30,4 @@ export function pickCity(name){
 export function toggleTag(id){state.tags.has(id)?state.tags.delete(id):state.tags.add(id);renderTags();persist();haptic();}
 export function filterRegions(q){const x=String(q||'').toLowerCase().trim();renderRegions(state.regions.filter(r=>r.name.toLowerCase().includes(x)));}
 export function filterCities(q){const x=String(q||'').toLowerCase().trim();renderCities(state.cities.filter(c=>c.name.toLowerCase().includes(x)));}
-export async function startPlaces(){if(!state.region||!state.city)return toast(t('select_city'));if(!state.tags.size)return toast(t('select_category'));await loadPlaces();}
+export async function startPlaces(){if(!state.region||!state.city)return toast(t('select_city'));if(!state.tags.size)return toast(t('select_category'));await loadPlaces({fresh:true});}
