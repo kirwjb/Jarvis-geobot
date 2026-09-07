@@ -20,7 +20,7 @@ function handleClick(event){
  if(action==='start'){event.preventDefault();go('regions');loadRegions();return}
  if(action==='back'){event.preventDefault();go(el.dataset.screen||'regions');return}
  if(action==='region'){pickRegion(el.dataset.id);return}
- if(action==='city'){pickCity(Number(el.dataset.index));return}
+ if(action==='city'){pickCity(el.dataset.city);return}
  if(action==='tag'){toggleTag(el.dataset.id);return}
  if(action==='show-places'){startPlaces();return}
  if(action==='choose-city'){state.mode='weather';go('regions');return}
