@@ -25,8 +25,9 @@ def test_place_dict_exposes_external_photo_without_local_paths():
     assert not result["images"]["thumb"].startswith("/media/")
 
 
-def test_marker_key_is_region_scoped():
-    assert geo_feed._marker_key("Минск", "Минская область") != geo_feed._marker_key("Минск", "другая область")
+def test_cache_key_is_region_scoped_and_normalized():
+    assert geo_feed._cache_key(" Минск ", "Минская   область") == geo_feed._cache_key("минск", "минская область")
+    assert geo_feed._cache_key("Минск", "Минская область") != geo_feed._cache_key("Минск", "другая область")
 
 
 @pytest.mark.asyncio
@@ -49,9 +50,18 @@ async def test_ensure_city_data_does_not_mark_empty_import(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_marker_read_failure_is_fail_open(monkeypatch):
+async def test_cache_read_failure_is_fail_open(monkeypatch):
     class BrokenRedis:
         async def get(self, key):
             raise RuntimeError("redis unavailable")
     monkeypatch.setattr(geo_feed, "redis_client", BrokenRedis())
-    assert await geo_feed._marker_exists("test") is False
+    assert await geo_feed._cache_get("test") is False
+
+
+@pytest.mark.asyncio
+async def test_cache_write_failure_is_fail_open(monkeypatch):
+    class BrokenRedis:
+        async def setex(self, *args):
+            raise RuntimeError("redis unavailable")
+    monkeypatch.setattr(geo_feed, "redis_client", BrokenRedis())
+    await geo_feed._cache_set("test")
