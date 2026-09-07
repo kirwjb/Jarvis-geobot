@@ -7,35 +7,23 @@ const saved = (() => {
 })();
 
 export const state = {
-  mode: saved.mode || 'travel',
-  region: saved.region || null,
-  city: saved.city || null,
-  tags: new Set(saved.tags || []),
-  favs: new Set((saved.favs || []).map(String)),
-  route: Array.isArray(saved.route) ? saved.route : [],
-  regions: [],
-  cities: [],
-  pois: [],
-  weather: null,
-  screen: 'splash'
+  mode: saved.mode || 'travel', region: saved.region || null, city: saved.city || null,
+  tags: new Set(saved.tags || []), favs: new Set((saved.favs || []).map(String)), route: Array.isArray(saved.route) ? saved.route : [],
+  regions: [], cities: [], pois: Array.isArray(saved.feed?.pois) ? saved.feed.pois : [], weather: null, screen: 'splash',
+  feed: saved.feed || null
 };
 
 export const TAGS = [
-  ['architecture','Архитектура'], ['nature','Природа'], ['museum','Музеи'],
-  ['church','Храмы'], ['castle','Замки'], ['monument','Памятники'], ['park','Парки']
+  ['architecture','Архитектура'], ['nature','Природа'], ['museum','Музеи'], ['church','Храмы'], ['castle','Замки'], ['monument','Памятники'], ['park','Парки']
 ].map(([id,name]) => ({id,name}));
 
 export function persist() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      mode: state.mode, region: state.region, city: state.city,
-      tags: [...state.tags], favs: [...state.favs], route: state.route,
-      screen: state.screen
+      mode: state.mode, region: state.region, city: state.city, tags: [...state.tags], favs: [...state.favs], route: state.route,
+      screen: state.screen, feed: state.feed
     }));
   } catch (_) {}
 }
 
-export function telegramUserId() {
-  const id = tg?.initDataUnsafe?.user?.id;
-  return Number.isInteger(id) ? id : null;
-}
+export function telegramUserId() { const id = tg?.initDataUnsafe?.user?.id; return Number.isInteger(id) ? id : null; }
