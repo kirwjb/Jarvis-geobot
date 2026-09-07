@@ -30,6 +30,12 @@ def test_cache_key_is_region_scoped_and_normalized():
     assert geo_feed._cache_key("Минск", "Минская область") != geo_feed._cache_key("Минск", "другая область")
 
 
+def test_feed_filters_city_and_region_together():
+    source = __import__("inspect").getsource(geo_feed.feed)
+    assert "Place.city == city" in source
+    assert "Place.region == region" in source
+
+
 @pytest.mark.asyncio
 async def test_ensure_city_data_does_not_mark_empty_import(monkeypatch):
     class Redis:
