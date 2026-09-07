@@ -3,7 +3,7 @@ import { $ } from './helpers.js';
 const DICT = {
   RU: {
     start_title:'Путешествуй по Беларуси', start_subtitle:'Достопримечательности, маршруты и погода', start:'Начать путешествие',
-    region:'Выберите регион', region_search:'Поиск региона...', city_search:'Поиск города...', back:'Назад', weather:'Погода',
+    region:'Выберите регион', region_search:'Поиск региона...', city_search:'Поиск города...', poi_search:'Поиск достопримечательности...', back:'Назад', weather:'Погода',
     weather_title:'Погода по городу', weather_empty:'Сначала выберите город в разделе «Путешествия»', choose_city:'Выбрать город',
     interests:'Интересы', interests_hint:'Можно выбрать несколько категорий', show_places:'Показать места', places:'Места',
     route:'Мой маршрут', build_route:'Построить маршрут', route_empty:'Маршрут пуст. Добавьте точки из карточек.',
@@ -17,7 +17,7 @@ const DICT = {
   },
   BY: {
     start_title:'Падарожнічай па Беларусі', start_subtitle:'Славутасці, маршруты і надвор’е', start:'Пачаць падарожжа',
-    region:'Выберыце рэгіён', region_search:'Пошук рэгіёна...', city_search:'Пошук горада...', back:'Назад', weather:'Надвор’е',
+    region:'Выберыце рэгіён', region_search:'Пошук рэгіёна...', city_search:'Пошук горада...', poi_search:'Пошук славутасці...', back:'Назад', weather:'Надвор’е',
     weather_title:'Надвор’е ў горадзе', weather_empty:'Спачатку выберыце горад у раздзеле «Падарожжы»', choose_city:'Выбраць горад',
     interests:'Інтарэсы', interests_hint:'Можна выбраць некалькі катэгорый', show_places:'Паказаць месцы', places:'Месцы',
     route:'Мой маршрут', build_route:'Пабудаваць маршрут', route_empty:'Маршрут пусты. Дадайце пункты з картак.',
