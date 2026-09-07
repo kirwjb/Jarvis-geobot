@@ -1,4 +1,4 @@
-import { tg, state, persist } from './core/state.js';
+import { tg, state, persist, clearAppCache } from './core/state.js';
 import { $ } from './ui/helpers.js';
 import { applyTheme, toggleTheme } from './ui/theme.js';
 import { applyLanguage, toggleLanguage } from './ui/language.js';
@@ -25,7 +25,7 @@ function handleClick(event){
  if(action==='show-places'){startPlaces();return}
  if(action==='choose-city'){state.mode='weather';go('regions');return}
  if(action==='weather-refresh'){loadWeather();return}
- if(action==='page-prev'||action==='page-next'){loadPage(Number(el.dataset.page));return}
+ if(action==='page-prev'||action==='page-next'){event.preventDefault();loadPage(Number(el.dataset.page));return}
  if(action==='shuffle'){event.preventDefault();shufflePlaces();return}
  if(action==='favorite'){event.stopPropagation();toggleFavorite(el.dataset.id);return}
  if(action==='route'){event.stopPropagation();toggleRoute(el.dataset.id);return}
@@ -50,6 +50,10 @@ function bind(){
  window.addEventListener('jarvis:language',()=>{renderTags();if(state.weather)renderWeather();loadRegions();});
  window.addEventListener('jarvis:favorites-changed',()=>loadFavorites());
  bindNavigation();initTelegramBackButton();installExtraNavigation();
+
+ // Telegram WebApp has no reliable close event. pagehide is the browser lifecycle
+ // event closest to WebApp disposal; clear only persisted session/cache data there.
+ window.addEventListener('pagehide',()=>clearAppCache(),{capture:true});
 }
 async function init(){
  bind();applyTheme(localStorage.getItem('jarvis-theme')||'dark',false);applyLanguage(localStorage.getItem('jarvis-language')||'RU',false);renderTags();updateFab();go('splash',{save:false});
