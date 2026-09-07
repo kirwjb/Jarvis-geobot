@@ -2,7 +2,7 @@ import { state, TAGS, persist } from '../core/state.js';
 import { request } from '../core/api.js';
 import { $, esc, toast, haptic } from '../ui/helpers.js';
 import { go } from '../core/router.js';
-import { loadPlaces } from './places.js?v=20260907-4';
+import { loadPlaces } from './places.js';
 import { t } from '../ui/language.js';
 
 export function renderRegions(list=state.regions){const grid=$('#regions-grid');if(!grid)return;grid.innerHTML=list.length?list.map(r=>`<button class="card" type="button" data-action="region" data-id="${esc(r.id)}"><span>${esc(r.name)}</span></button>`).join(''):`<div class="empty">${esc(t('nothing'))}</div>`;}
