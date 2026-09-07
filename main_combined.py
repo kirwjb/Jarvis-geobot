@@ -21,23 +21,17 @@ from src.utils.utils import log, error
 
 from src.routers.api_integrated import app as fastapi_app
 from src.routers.photo_warmup import router as photo_warmup_router
+from src.routers.geo_feed import router as geo_feed_router
 
 WEB_DIR = Path(__file__).resolve().parent / "frontend"
 MEDIA_DIR = Path(__file__).resolve().parent / "media"
 INDEX_FILE = WEB_DIR / "index.html"
 MEDIA_DIR.mkdir(parents=True, exist_ok=True)
 
-fastapi_app.mount(
-    "/media",
-    StaticFiles(directory=str(MEDIA_DIR)),
-    name="media",
-)
-fastapi_app.mount(
-    "/",
-    StaticFiles(directory=str(WEB_DIR), html=True),
-    name="geoapp",
-)
+fastapi_app.mount("/media", StaticFiles(directory=str(MEDIA_DIR)), name="media")
+fastapi_app.mount("/", StaticFiles(directory=str(WEB_DIR), html=True), name="geoapp")
 fastapi_app.include_router(photo_warmup_router)
+fastapi_app.include_router(geo_feed_router)
 
 logger = logging.getLogger("telebot")
 logger.setLevel(logging.CRITICAL)
@@ -46,19 +40,14 @@ bot = AsyncTeleBot(TOKEN)
 security_mw = SecurityMiddleware(redis_client)
 bot.setup_middleware(security_mw)
 
-
 async def init_bot():
     await register_admin_handlers(bot, redis_client)
     await register_cache_admin_handler(bot)
     await register_start_help_handlers(bot)
     log(get_text("bot_started"))
 
-
 async def run_bot():
-    await bot.infinity_polling(
-        allowed_updates=["message", "callback_query"]
-    )
-
+    await bot.infinity_polling(allowed_updates=["message", "callback_query"])
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -75,9 +64,7 @@ async def lifespan(app: FastAPI):
             pass
         log(get_text("bot_stopped"))
 
-
 fastapi_app.router.lifespan_context = lifespan
-
 
 @fastapi_app.middleware("http")
 async def serve_geoapp_root(request: Request, call_next):
@@ -85,15 +72,9 @@ async def serve_geoapp_root(request: Request, call_next):
         return FileResponse(INDEX_FILE, media_type="text/html")
     return await call_next(request)
 
-
 if __name__ == "__main__":
     try:
-        uvicorn.run(
-            fastapi_app,
-            host="0.0.0.0",
-            port=8000,
-            log_level="info",
-        )
+        uvicorn.run(fastapi_app, host="0.0.0.0", port=8000, log_level="info")
     except KeyboardInterrupt:
         log(get_text("bot_stopped"))
     except Exception as exc:
