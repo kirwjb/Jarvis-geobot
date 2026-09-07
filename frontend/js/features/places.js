@@ -7,65 +7,53 @@ import { t } from '../ui/language.js';
 const PAGE = 8;
 let page = 0, pages = 0, loading = false, key = '', search = '', shuffle = '', controller = null;
 const cache = new Map();
-
 const queryKey = () => JSON.stringify({ region: state.region, city: state.city, tags: [...state.tags].sort(), search: search.trim() });
 const freshSeed = () => (crypto.randomUUID ? crypto.randomUUID().replaceAll('-', '') : `${Date.now()}${Math.random()}`);
+
+function ensureFeedControls(){
+ const feed=$('#feed'); if(!feed||$('#poi-search'))return;
+ const wrap=document.createElement('div'); wrap.className='poi-tools';
+ wrap.innerHTML='<input id="poi-search" class="search" type="search" placeholder="Поиск достопримечательности..."><button id="poi-shuffle" class="poi-page-btn" type="button" data-action="shuffle" aria-label="Shuffle">🔀</button>';
+ feed.parentNode.insertBefore(wrap,feed);
+ const top=$('#cards .topbar'); if(top&&!$('#poi-count')){const count=document.createElement('span');count.id='poi-count';count.className='step';top.appendChild(count);}
+}
 
 export function poiCardMarkup(p){
  const id=String(p.id), im=p.images?.medium||p.images?.thumb||p.image_url, fav=state.favs.has(id), rt=state.route.some(x=>String(x.id)===id);
  return `<article class="poi-card" data-action="detail" data-id="${esc(id)}"><div class="poi-img">${im?`<img src="${esc(im)}" alt="${esc(p.name)}" loading="lazy" decoding="async">`:'<div class="poi-placeholder">🏛️</div>'}</div><div class="poi-body"><div class="poi-name">${esc(p.name||t('place'))}</div><div class="poi-loc">📍 ${esc(p.city||'')}${p.address?` · ${esc(p.address)}`:''}</div><div class="poi-actions"><button class="poi-act ${fav?'active':''}" type="button" data-action="favorite" data-id="${esc(id)}">${fav?'❤️':'♡'} ${esc(t('favorite'))}</button><button class="poi-act ${rt?'active':''}" type="button" data-action="route" data-id="${esc(id)}">${rt?'✓':'＋'} ${esc(t('route_add'))}</button></div></div></article>`;
 }
-
 function render(){
- const feed=$('#feed'); if(feed) feed.innerHTML=state.pois.length?state.pois.map(poiCardMarkup).join(''):`<div class="empty">${esc(t('nothing'))}</div>`;
- const box=$('#poi-pagination');
- if(box) box.innerHTML=(pages||state.pois.length)?`<button class="poi-page-btn" type="button" data-action="page-prev" data-page="${page-1}" ${page===0||loading?'disabled':''}>←</button><span class="poi-page-label">${esc(t('page'))} ${page+1}${pages?` / ${pages}`:''}</span><button class="poi-page-btn" type="button" data-action="page-next" data-page="${page+1}" ${page+1>=pages||loading?'disabled':''}>→</button>`:'';
- const count=$('#poi-count'); if(count) count.textContent=pages ? `${page*PAGE+1}–${Math.min((page+1)*PAGE, state.feed?.total||0)} / ${state.feed?.total||0}` : '';
- const sh=$('#poi-shuffle'); if(sh) sh.disabled=loading;
+ const feed=$('#feed');if(feed)feed.innerHTML=state.pois.length?state.pois.map(poiCardMarkup).join(''):`<div class="empty">${esc(t('nothing'))}</div>`;
+ const box=$('#poi-pagination');if(box)box.innerHTML=(pages||state.pois.length)?`<button class="poi-page-btn" type="button" data-action="page-prev" data-page="${page-1}" ${page===0||loading?'disabled':''}>←</button><span class="poi-page-label">${esc(t('page'))} ${page+1}${pages?` / ${pages}`:''}</span><button class="poi-page-btn" type="button" data-action="page-next" data-page="${page+1}" ${page+1>=pages||loading?'disabled':''}>→</button>`:'';
+ const count=$('#poi-count');if(count)count.textContent=pages?`${page*PAGE+1}–${Math.min((page+1)*PAGE,state.feed?.total||0)} / ${state.feed?.total||0}`:'';
+ const sh=$('#poi-shuffle');if(sh)sh.disabled=loading;
 }
 const loadingMarkup=()=>`<div class="jarvis-loading"><div class="jarvis-spinner"></div><div class="jarvis-loading-title">${esc(t('searching'))}</div></div>`;
 
-export function cancelPoiSearch(){ if(controller){controller.abort();controller=null;} loading=false; render(); }
+export function cancelPoiSearch(){if(controller){controller.abort();controller=null;}loading=false;persist();render();}
 registerNavigationAbort(cancelPoiSearch);
 
-function snapshot(){ state.feed={key, search, shuffle, page, pages, total: state.feed?.total||0, pois: state.pois}; persist(); }
-
 export async function loadPlaces({fresh=false}={}){
+ ensureFeedControls();
  if(!state.region||!state.city)return;
  const saved=state.feed;
- if(!fresh && saved?.key===queryKey() && Array.isArray(saved.pois) && saved.pois.length){
-   search=saved.search||''; shuffle=saved.shuffle||freshSeed(); page=saved.page||0; pages=saved.pages||0; key=saved.key; state.pois=saved.pois; go('cards'); $('#cards-title').textContent=state.city||t('places'); render(); return;
- }
- search=''; shuffle=freshSeed(); key=queryKey(); page=0; pages=0; cache.clear(); state.pois=[]; state.feed={key,search,shuffle,page,pages,total:0,pois:[]};
- go('cards'); $('#cards-title').textContent=state.city||t('places');
- const input=$('#poi-search'); if(input) input.value='';
- $('#feed').innerHTML=loadingMarkup(); await loadPage(0);
+ if(!fresh&&saved?.key===queryKey()&&Array.isArray(saved.pois)&&saved.pois.length){search=saved.search||'';shuffle=saved.shuffle||freshSeed();page=saved.page||0;pages=saved.pages||0;key=saved.key;state.pois=saved.pois;go('cards');$('#cards-title').textContent=state.city||t('places');const input=$('#poi-search');if(input)input.value=search;render();return;}
+ search='';shuffle=freshSeed();key=queryKey();page=0;pages=0;cache.clear();state.pois=[];state.feed={key,search,shuffle,page,pages,total:0,pois:[]};
+ go('cards');$('#cards-title').textContent=state.city||t('places');const input=$('#poi-search');if(input)input.value='';$('#feed').innerHTML=loadingMarkup();await loadPage(0);
 }
 
 export async function loadPage(next){
  if(next<0||loading)return;
- const k=queryKey();
- if(k!==key){cache.clear();key=k;page=0;pages=0;shuffle=freshSeed();}
+ const k=queryKey();if(k!==key){cache.clear();key=k;page=0;pages=0;shuffle=freshSeed();}
  if(cache.has(next)){const c=cache.get(next);page=next;state.pois=c.places;pages=c.pages;state.feed={key,search,shuffle,page,pages,total:c.total,pois:state.pois};persist();render();return;}
- controller=new AbortController(); loading=true; render();
- try{
-   const params=new URLSearchParams({region:state.region,city:state.city,tags:[...state.tags].join(','),search:search.trim(),page:String(next),page_size:String(PAGE),shuffle});
-   const d=await request(`/geo/pois/feed?${params.toString()}`,{signal:controller.signal});
-   const pois=Array.isArray(d?.pois)?d.pois:[];
-   const c={places:pois,pages:Number(d?.pages||0),total:Number(d?.total||0)};
-   cache.set(next,c); page=next; pages=c.pages; state.pois=pois; state.feed={key,search,shuffle,page,pages,total:c.total,pois}; persist(); render();
- }catch(e){ if(e?.name!=='AbortError') toast(`${t('places_failed')}: ${e.message}`); }
+ controller=new AbortController();loading=true;render();
+ try{const params=new URLSearchParams({region:state.region,city:state.city,tags:[...state.tags].join(','),search:search.trim(),page:String(next),page_size:String(PAGE),shuffle});const d=await request(`/geo/pois/feed?${params.toString()}`,{signal:controller.signal});const pois=Array.isArray(d?.pois)?d.pois:[];const c={places:pois,pages:Number(d?.pages||0),total:Number(d?.total||0)};cache.set(next,c);page=next;pages=c.pages;state.pois=pois;state.feed={key,search,shuffle,page,pages,total:c.total,pois};persist();render();}
+ catch(e){if(e?.name!=='AbortError')toast(`${t('places_failed')}: ${e.message}`);}
  finally{controller=null;loading=false;render();}
 }
 
-export async function searchPlaces(value){
- search=String(value||'').trim(); key=queryKey(); page=0; cache.clear(); pages=0; state.pois=[]; shuffle=freshSeed(); key=queryKey(); state.feed={key,search,shuffle,page:0,pages:0,total:0,pois:[]}; persist(); await loadPage(0);
-}
-
-export async function shufflePlaces(){
- if(loading)return; shuffle=freshSeed(); page=0; cache.clear(); state.pois=[]; state.feed={key,search,shuffle,page:0,pages:0,total:0,pois:[]}; persist(); await loadPage(0); haptic();
-}
-
+export async function searchPlaces(value){search=String(value||'').trim();shuffle=freshSeed();page=0;cache.clear();state.pois=[];key=queryKey();state.feed={key,search,shuffle,page:0,pages:0,total:0,pois:[]};persist();await loadPage(0);}
+export async function shufflePlaces(){if(loading)return;shuffle=freshSeed();page=0;cache.clear();state.pois=[];key=queryKey();state.feed={key,search,shuffle,page:0,pages:0,total:0,pois:[]};persist();await loadPage(0);haptic();}
 export async function toggleFavorite(id){if(!telegramUserId())return toast(t('tg_only'));try{const d=await request('/favorites/toggle',{method:'POST',body:JSON.stringify({poi_id:String(id)})});d?.favorited?state.favs.add(String(id)):state.favs.delete(String(id));render();persist();haptic();window.dispatchEvent(new CustomEvent('jarvis:favorites-changed'));}catch(e){toast(`Не удалось изменить избранное: ${e.message}`)}}
 export function toggleRoute(id){const k=String(id),found=state.route.find(x=>String(x.id)===k);if(found)state.route=state.route.filter(x=>String(x.id)!==k);else{const p=state.pois.find(x=>String(x.id)===k);if(p)state.route.push(p)}updateFab();render();persist();haptic();}
 export function updateFab(){const fab=$('#fab'),count=$('#fab-count');if(!fab)return;fab.classList.toggle('hidden',!state.route.length);if(count)count.textContent=state.route.length;}
