@@ -13,30 +13,56 @@ NOMINATIM_URL = NOMINATIM_URLS[0] if NOMINATIM_URLS else "https://nominatim.open
 HEADERS = {"User-Agent": "JARVIS-Travel-Bot/1.0"}
 TYPE_MAP = {"museum":"Музей","attraction":"Достопримечательность","gallery":"Галерея","viewpoint":"Смотровая площадка","monument":"Памятник","memorial":"Мемориал","castle":"Замок","ruins":"Руины","church":"Церковь","cathedral":"Собор","manor":"Усадьба","theme_park":"Парк аттракционов"}
 
-async def get_city_coords(city: str) -> tuple[float | None, float | None]:
-    params={"q":f"{city}, Belarus","format":"json","limit":1,"accept-language":"ru"}
+CITY_BBOXES = {
+    # Municipal boundary fallback for cases where Nominatim returns a point-only result.
+    "минск": (53.75, 27.35, 54.05, 27.75),
+}
+
+async def get_city_bounds(city: str, country: str = "Belarus") -> tuple[float, float, float, float] | None:
+    key = city.strip().lower()
+    if key in CITY_BBOXES:
+        return CITY_BBOXES[key]
+    params={"q":f"{city}, {country}","format":"json","limit":1,"addressdetails":1,"accept-language":"ru"}
     try:
         async with aiohttp.ClientSession(headers=HEADERS) as session:
             async with session.get(NOMINATIM_URL,params=params,timeout=10) as response:
                 if response.status != 200:
-                    error(f"Nominatim {response.status}: {get_api_error_message(response.status)}"); return None,None
+                    error(f"Nominatim {response.status}: {get_api_error_message(response.status)}"); return None
                 data=await response.json()
-                if not data: log(f"Nominatim: город не найден: {city}"); return None,None
-                return float(data[0]["lat"]),float(data[0]["lon"])
+                if not data: log(f"Nominatim: город не найден: {city}"); return None
+                box=data[0].get("boundingbox")
+                if box and len(box)==4:
+                    south,north,west,east=map(float,box)
+                    return south,west,north,east
+                return None
     except Exception as exc:
-        error(f"Ошибка получения координат города {city}: {exc}"); return None,None
+        error(f"Ошибка получения границ города {city}: {exc}"); return None
 
-async def get_attractions_osm(city: str, limit: int = 100) -> list[dict]:
-    lat,lon=await get_city_coords(city)
-    if lat is None or lon is None:return []
-    bbox=f"{lat-0.1},{lon-0.15},{lat+0.1},{lon+0.15}"
-    query=f'''[out:json][timeout:20];(node["tourism"~"{TOURISM_TYPES}"]({bbox});way["tourism"~"{TOURISM_TYPES}"]({bbox});node["historic"~"{HISTORIC_TYPES}"]({bbox});way["historic"~"{HISTORIC_TYPES}"]({bbox}););out tags center;'''
-    timeout=aiohttp.ClientTimeout(total=35, connect=10)
+async def get_city_coords(city: str, country: str = "Belarus") -> tuple[float | None, float | None]:
+    bounds = await get_city_bounds(city, country)
+    if bounds:
+        south,west,north,east=bounds
+        return (south+north)/2,(west+east)/2
+    return None,None
+
+async def get_attractions_osm(city: str, limit: int = 100, country: str = "Belarus") -> list[dict]:
+    bounds = await get_city_bounds(city, country)
+    if not bounds:return []
+    south,west,north,east=bounds
+    # Nominatim occasionally returns a very wide administrative box. Keep a sane
+    # cap around the city while still covering large cities much better than the old fixed bbox.
+    lat_span=min(max(north-south,0.02),0.45); lon_span=min(max(east-west,0.02),0.60)
+    lat=(south+north)/2; lon=(west+east)/2
+    if north-south>lat_span: south,north=lat-lat_span/2,lat+lat_span/2
+    if east-west>lon_span: west,east=lon-lon_span/2,lon+lon_span/2
+    bbox=f"{south},{west},{north},{east}"
+    query=f'''[out:json][timeout:60];(node["tourism"~"{TOURISM_TYPES}"]({bbox});way["tourism"~"{TOURISM_TYPES}"]({bbox});node["historic"~"{HISTORIC_TYPES}"]({bbox});way["historic"~"{HISTORIC_TYPES}"]({bbox}););out tags center;'''
+    timeout=aiohttp.ClientTimeout(total=90, connect=15)
     async with aiohttp.ClientSession(headers=HEADERS,timeout=timeout) as session:
         for url in OVERPASS_URLS:
             for attempt in range(3):
                 try:
-                    log(f"Overpass: {city} → {url} (attempt {attempt+1}/3)")
+                    log(f"Overpass: {city} → {url} (attempt {attempt+1}/3, bbox={bbox})")
                     async with session.post(url,data={"data":query}) as response:
                         if response.status != 200:
                             error(f"Overpass {response.status}: {get_api_error_message(response.status)}")
