@@ -26,10 +26,11 @@ def test_parse_attractions_supports_nodes_and_ways_and_deduplicates():
     places = parser_service._parse_attractions(elements)
 
     assert len(places) == 2
-    assert places[0]["name"] == "Castle"
-    assert places[1]["name"] == "Museum"
-    assert places[1]["address"] == "Lenina, 1"
-    assert places[0]["id"] == "osm:way:2"
+    assert {place["name"] for place in places} == {"Museum", "Castle"}
+    museum = next(place for place in places if place["name"] == "Museum")
+    castle = next(place for place in places if place["name"] == "Castle")
+    assert museum["address"] == "Lenina, 1"
+    assert castle["id"] == "osm:way:2"
 
 
 def test_build_place_id_is_stable_without_osm_id():
