@@ -29,14 +29,15 @@ def place_dict(place: Place, photo: PlacePhoto | None = None) -> dict:
     url = photo.original_url if photo else None; images = {"thumb": url, "medium": url, "original": url} if url else None
     return {"id": place.place_id, "name": place.name, "city": place.city, "region": place.region, "address": place.address or "", "category": place.category, "lat": float(place.lat), "lon": float(place.lon), "hours": place.hours, "phone": place.phone, "image_url": url, "images": images}
 
-async def ensure_city_data(session, city: str, region: str) -> None:
-    # The marker means that a complete OSM import was attempted successfully.
+async def ensure_city_data(session, city: str, region: str) -> bool:
+    # The marker means that a complete OSM import was successfully committed.
     # Do not use DB row count: older installations may contain only a partial feed.
-    cache_key = f"geo-feed:osm:{city.strip().lower()}"
-    if await redis_client.get(cache_key): return
-    attractions = await get_attractions_osm(city, limit=0)
+    cache_key = f"geo-feed:osm:belarus:{city.strip().lower()}"
+    if await redis_client.get(cache_key): return False
+    attractions = await get_attractions_osm(city, limit=0, country="Belarus")
     if not attractions:
-        return
+        return False
+    imported = 0
     for attr in attractions:
         pid, name = attr.get("id"), attr.get("name"); lat, lon = attr.get("lat"), attr.get("lon")
         if not pid or not name or lat is None or lon is None: continue
@@ -46,8 +47,10 @@ async def ensure_city_data(session, city: str, region: str) -> None:
             session.add(Place(place_id=pid, **values))
         else:
             for field, value in values.items(): setattr(place, field, value)
-    await session.flush()
-    await redis_client.setex(cache_key, 86400, "1")
+        imported += 1
+    if imported:
+        await session.flush()
+    return bool(imported)
 
 async def hydrate_urls(session, places: list[Place]) -> dict[str, PlacePhoto]:
     result = {}
@@ -69,15 +72,16 @@ async def feed(region: str, city: str, tags: Optional[str] = None, search: str =
     page=max(page,0); page_size=min(max(page_size,1),MAX_PAGE_SIZE); tag_list=[x.strip() for x in (tags or "").split(",") if x.strip()]; cats=categories(tag_list)
     seed=shuffle or hashlib.sha256(f"{city}|{tags or ''}".encode()).hexdigest()[:16]
     async with AsyncSessionLocal() as session:
-        await ensure_city_data(session,city,region)
+        imported = await ensure_city_data(session,city,region)
         filters=[Place.city==city]
         if cats: filters.append(Place.category.in_(cats))
         if search.strip():
             term=f"%{search.strip()}%"; filters.append((Place.name.ilike(term)) | (Place.address.ilike(term)))
         count=await session.execute(select(func.count(Place.id)).where(*filters)); total=int(count.scalar_one()); pages=(total+page_size-1)//page_size if total else 0
-        # PostgreSQL string concatenation must use ||, not +.
         order_expr=func.md5(Place.place_id.op("||")(seed))
         rows=await session.execute(select(Place).where(*filters).order_by(order_expr, Place.name.asc()).offset(page*page_size).limit(page_size)); places=list(rows.scalars().all()); photos=await hydrate_urls(session,places); await session.commit()
+        if imported:
+            await redis_client.setex(f"geo-feed:osm:belarus:{city.strip().lower()}", 86400, "1")
         return {"region":region,"city":city,"tags":tag_list,"search":search,"page":page,"page_size":page_size,"total":total,"pages":pages,"has_next":page+1<pages,"shuffle":seed,"pois":[place_dict(p,photos.get(p.place_id)) for p in places]}
 
 @router.get("/pois/{place_id}")
