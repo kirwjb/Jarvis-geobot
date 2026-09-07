@@ -5,7 +5,7 @@ import { applyLanguage, toggleLanguage } from './ui/language.js';
 import { go, initTelegramBackButton, bindNavigation } from './core/router.js';
 import { loadRegions, pickRegion, pickCity, toggleTag, filterRegions, filterCities, renderTags, startPlaces } from './features/travel.js?v=20260907-4';
 import { loadWeather, renderWeather } from './features/weather.js';
-import { loadFavorites, toggleFavorite, toggleRoute, openDetail, loadPage, updateFab, searchPlaces, shufflePlaces } from './features/places.js?v=20260907-1';
+import { loadFavorites, toggleFavorite, toggleRoute, openDetail, loadPage, updateFab, searchPlaces, shufflePlaces } from './features/places.js?v=20260907-2';
 import { renderRoute, removeRoute, buildRoute, copyRoute, openRoute } from './features/route.js';
 import { installExtraNavigation } from './features/navigation-extra.js';
 
@@ -21,7 +21,7 @@ function handleClick(event){
  if(action==='region'){event.preventDefault();pickRegion(el.dataset.id);return}
  if(action==='city'){event.preventDefault();pickCity(el.dataset.city);return}
  if(action==='tag'){event.preventDefault();toggleTag(el.dataset.id);return}
- if(action==='start-places'){event.preventDefault();startPlaces();return}
+ if(action==='show-places'||action==='start-places'){event.preventDefault();startPlaces();return}
  if(action==='page-prev'||action==='page-next'){event.preventDefault();loadPage(Number(el.dataset.page));return}
  if(action==='shuffle'){event.preventDefault();shufflePlaces();return}
  if(action==='favorite'){event.preventDefault();toggleFavorite(el.dataset.id);return}
