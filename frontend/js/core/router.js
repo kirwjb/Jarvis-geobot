@@ -1,9 +1,13 @@
 import { state, persist, tg } from './state.js';
 import { $, $$, haptic } from '../ui/helpers.js';
 
+let navigationAbort = null;
+export function registerNavigationAbort(fn) { navigationAbort = typeof fn === 'function' ? fn : null; }
+
 export function go(id, {save=true}={}) {
   const target = document.getElementById(id);
   if (!target) return false;
+  if (state.screen === 'cards' && id !== 'cards') navigationAbort?.();
   $$('.screen').forEach(s => s.classList.remove('active'));
   target.classList.add('active');
   state.screen = id;
@@ -25,25 +29,15 @@ export function initTelegramBackButton() {
   });
 }
 
-export function setTab(tab) {
-  $$('.bottom-nav-item').forEach(item => item.classList.toggle('active', item.dataset.tab === tab));
-}
+export function setTab(tab) { $$('.bottom-nav-item').forEach(item => item.classList.toggle('active', item.dataset.tab === tab)); }
 
 export function bindNavigation() {
   $('#bottom-nav')?.addEventListener('click', e => {
     const item = e.target.closest('.bottom-nav-item');
     if (!item) return;
-
-    // The POI feed is a focused screen. Once it is open, bottom-tab
-    // navigation must not destroy it. Leaving the feed is only possible
-    // through the Back button (Telegram BackButton or the screen's Back UI).
     if (state.screen === 'cards') {
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      haptic();
-      return;
+      e.preventDefault(); e.stopImmediatePropagation(); haptic(); return;
     }
-
     const tab = item.dataset.tab;
     if (tab === 'travel') { state.mode='travel'; setTab(tab); go('regions'); }
     if (tab === 'weather') { state.mode='weather'; setTab(tab); go(state.city && state.region ? 'weather' : 'regions'); }
