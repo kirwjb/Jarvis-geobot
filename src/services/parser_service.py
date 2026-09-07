@@ -46,7 +46,7 @@ async def get_attractions_osm(city: str, limit: int = 100) -> list[dict]:
                         data=await response.json(content_type=None)
                         attractions=_parse_attractions(data.get("elements",[])); attractions.sort(key=lambda x:x["name"].lower())
                         log(f"Получено {len(attractions)} достопримечательностей для {city}")
-                        return attractions[:limit]
+                        return attractions if limit <= 0 else attractions[:limit]
                 except (aiohttp.ClientError, asyncio.TimeoutError, ValueError) as exc:
                     error(f"Ошибка Overpass {url} attempt {attempt+1}/3: {exc}")
                     if attempt<2: await asyncio.sleep(1.5*(2**attempt))
