@@ -1,7 +1,7 @@
 import { tg, state, persist, clearAppCache } from './core/state.js';
-import { $ } from './ui/helpers.js';
+import { $, } from './ui/helpers.js';
 import { applyTheme, toggleTheme } from './ui/theme.js';
-import { applyLanguage, toggleLanguage } from './ui/language.js';
+import { applyLanguage, toggleLanguage } from './ui/language.js?v=20260907-2';
 import { go, initTelegramBackButton, bindNavigation } from './core/router.js';
 import { loadRegions, pickRegion, pickCity, toggleTag, filterRegions, filterCities, renderTags, startPlaces } from './features/travel.js?v=20260907-4';
 import { loadWeather, renderWeather } from './features/weather.js';
