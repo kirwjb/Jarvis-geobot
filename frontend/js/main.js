@@ -3,7 +3,7 @@ import { $ } from './ui/helpers.js';
 import { applyTheme, toggleTheme } from './ui/theme.js';
 import { applyLanguage, toggleLanguage } from './ui/language.js';
 import { go, initTelegramBackButton, bindNavigation } from './core/router.js';
-import { loadRegions, pickRegion, pickCity, toggleTag, filterRegions, filterCities, renderTags, startPlaces } from './features/travel.js';
+import { loadRegions, pickRegion, pickCity, toggleTag, filterRegions, filterCities, renderTags, startPlaces } from './features/travel.js?v=20260907-4';
 import { loadWeather, renderWeather } from './features/weather.js';
 import { loadFavorites, toggleFavorite, toggleRoute, openDetail, loadPage, updateFab, searchPlaces, shufflePlaces } from './features/places.js';
 import { renderRoute, removeRoute, buildRoute, copyRoute, openRoute } from './features/route.js';
@@ -20,7 +20,7 @@ function handleClick(event){
  if(action==='start'){event.preventDefault();go('regions');loadRegions();return}
  if(action==='back'){event.preventDefault();go(el.dataset.screen||'regions');return}
  if(action==='region'){pickRegion(el.dataset.id);return}
- if(action==='city'){pickCity(el.dataset.city);return}
+ if(action==='city'){event.preventDefault();pickCity(el.dataset.city);return}
  if(action==='tag'){toggleTag(el.dataset.id);return}
  if(action==='show-places'){startPlaces();return}
  if(action==='choose-city'){state.mode='weather';go('regions');return}
