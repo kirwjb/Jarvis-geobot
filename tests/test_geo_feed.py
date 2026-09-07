@@ -1,13 +1,12 @@
+from types import SimpleNamespace
+
 import pytest
 
 from src.routers import geo_feed
 
 
 def test_categories_expand_ui_tags():
-    result = geo_feed.categories(["museum", "nature"])
-    assert "museum" in result
-    assert "park" in result
-    assert "viewpoint" in result
+    assert geo_feed.categories(["museum", "nature"]) == {"museum", "park", "viewpoint", "ruins"}
 
 
 def test_normalize_category_handles_russian_labels():
@@ -17,26 +16,17 @@ def test_normalize_category_handles_russian_labels():
     assert geo_feed.normalize_category("unknown") == "misc"
 
 
-def test_place_dict_uses_only_external_photo_url():
-    class Place:
-        place_id = "osm:node:1"
-        name = "Test"
-        city = "Минск"
-        region = "Минская область"
-        address = "Street 1"
-        category = "museum"
-        lat = 53.9
-        lon = 27.56
-        hours = None
-        phone = None
-
-    class Photo:
-        original_url = "https://upload.wikimedia.org/example.jpg"
-
-    result = geo_feed.place_dict(Place(), Photo())
-    assert result["image_url"] == Photo.original_url
-    assert result["images"] == {"thumb": Photo.original_url, "medium": Photo.original_url, "original": Photo.original_url}
+def test_place_dict_exposes_external_photo_without_local_paths():
+    place = SimpleNamespace(place_id="osm:node:1", name="Test", city="Минск", region="Минская область", address="Street 1", category="museum", lat=53.9, lon=27.56, hours=None, phone=None)
+    photo = SimpleNamespace(original_url="https://upload.wikimedia.org/example.jpg")
+    result = geo_feed.place_dict(place, photo)
+    assert result["image_url"] == photo.original_url
+    assert result["images"] == {"thumb": photo.original_url, "medium": photo.original_url, "original": photo.original_url}
     assert not result["images"]["thumb"].startswith("/media/")
+
+
+def test_marker_key_is_region_scoped():
+    assert geo_feed._marker_key("Минск", "Минская область") != geo_feed._marker_key("Минск", "другая область")
 
 
 @pytest.mark.asyncio
@@ -51,11 +41,17 @@ async def test_ensure_city_data_does_not_mark_empty_import(monkeypatch):
 
     redis = Redis()
     monkeypatch.setattr(geo_feed, "redis_client", redis)
-    monkeypatch.setattr(geo_feed, "get_attractions_osm", lambda *args, **kwargs: [])
-
-    class Session:
-        async def execute(self, *args, **kwargs):
-            raise AssertionError("DB should not be queried for an empty import")
-
-    await geo_feed.ensure_city_data(Session(), "Минск", "Минская область")
+    async def no_data(*args, **kwargs):
+        return []
+    monkeypatch.setattr(geo_feed, "get_attractions_osm", no_data)
+    await geo_feed.ensure_city_data(SimpleNamespace(), "Минск", "Минская область")
     assert redis.set_calls == []
+
+
+@pytest.mark.asyncio
+async def test_marker_read_failure_is_fail_open(monkeypatch):
+    class BrokenRedis:
+        async def get(self, key):
+            raise RuntimeError("redis unavailable")
+    monkeypatch.setattr(geo_feed, "redis_client", BrokenRedis())
+    assert await geo_feed._marker_exists("test") is False
