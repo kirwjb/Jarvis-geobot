@@ -3,55 +3,16 @@ import { request } from '../core/api.js';
 import { $, esc, toast, haptic } from '../ui/helpers.js';
 import { go } from '../core/router.js';
 import { t } from '../ui/language.js';
-
-const PAGE=8; let page=0, hasNext=false, loading=false, key=''; const cache=new Map(); const photoLoading=new Set();
+const PAGE=8; let page=0,hasNext=false,loading=false,key=''; const cache=new Map(),photoLoading=new Set();
 const queryKey=()=>JSON.stringify({region:state.region,city:state.city,tags:[...state.tags].sort()});
-
-export function poiCardMarkup(p){
- const id=String(p.id),im=p.images?.medium||p.images?.thumb||p.image_url,fav=state.favs.has(id),rt=state.route.some(x=>String(x.id)===id);
- return `<article class="poi-card" data-action="detail" data-id="${esc(id)}"><div class="poi-img">${im?`<img src="${esc(im)}" alt="${esc(p.name)}" loading="lazy" decoding="async">`:'<div class="poi-placeholder">🏛️</div>'}</div><div class="poi-body"><div class="poi-name">${esc(p.name||t('place'))}</div><div class="poi-loc">📍 ${esc(p.city||'')}${p.address?` · ${esc(p.address)}`:''}</div><div class="poi-actions"><button class="poi-act ${fav?'active':''}" type="button" data-action="favorite" data-id="${esc(id)}">${fav?'❤️':'♡'} ${esc(t('favorite'))}</button><button class="poi-act ${rt?'active':''}" type="button" data-action="route" data-id="${esc(id)}">${rt?'✓':'＋'} ${esc(t('route_add'))}</button></div></div></article>`;
-}
-function render(){const feed=$('#feed');if(!feed)return;feed.innerHTML=state.pois.length?state.pois.map(poiCardMarkup).join(''):`<div class="empty">${esc(t('nothing'))}</div>`;const box=$('#poi-pagination');if(box)box.innerHTML=(state.pois.length||hasNext)?`<button class="poi-page-btn" type="button" data-action="page-prev" data-page="${page-1}" ${page===0||loading?'disabled':''}>←</button><span class="poi-page-label">${esc(t('page'))} ${page+1}</span><button class="poi-page-btn" type="button" data-action="page-next" data-page="${page+1}" ${!hasNext||loading?'disabled':''}>→</button>`:'';}
-const loadingMarkup=()=>`<div class="jarvis-loading"><div class="jarvis-spinner"></div><div class="jarvis-loading-title">${esc(t('searching'))}</div></div>`;
-
-async function loadMissingPhotos(places){
- const missing=places.filter(p=>p?.id&&!p.images?.medium&&!p.images?.thumb&&!p.image_url&&!photoLoading.has(String(p.id)));
- for(let i=0;i<missing.length;i+=3){
-   await Promise.all(missing.slice(i,i+3).map(async p=>{
-     const id=String(p.id);photoLoading.add(id);
-     try{
-       const detail=await request(`/pois/${encodeURIComponent(id)}`);
-       const im=detail?.images?.medium||detail?.images?.thumb||detail?.image_url;
-       if(!im)return;
-       Object.assign(p,detail);
-       const card=[...document.querySelectorAll('#feed .poi-card')].find(el=>el.dataset.id===id);
-       const media=card?.querySelector('.poi-img');
-       if(media)media.innerHTML=`<img src="${esc(im)}" alt="${esc(detail.name||p.name||t('place'))}" loading="lazy" decoding="async">`;
-     }catch(_){
-       // Missing source photo must not block cards or pagination.
-     }finally{photoLoading.delete(id);}
-   }));
- }
-}
-
-export async function loadPlaces(){go('cards');page=0;cache.clear();key=queryKey();state.pois=[];hasNext=false;$('#feed').innerHTML=loadingMarkup();$('#cards-title').textContent=state.city||t('places');await loadPage(0);}
-
-export async function loadPage(next){
- if(next<0||loading)return;
- const k=queryKey();
- if(k!==key){cache.clear();key=k;page=0;hasNext=false;if(next!==0)next=0;}
- if(cache.has(next)){const c=cache.get(next);page=next;state.pois=c.places;hasNext=c.hasNext;render();void loadMissingPhotos(state.pois);return;}
- loading=true;render();
- try{
-   const d=await request('/pois/query',{method:'POST',body:JSON.stringify({region:state.region,city:state.city,tags:[...state.tags],limit:PAGE+1,offset:next*PAGE})});
-   const pois=Array.isArray(d?.pois)?d.pois:[];
-   const c={places:pois.slice(0,PAGE),hasNext:pois.length>PAGE};
-   cache.set(next,c);page=next;state.pois=c.places;hasNext=c.hasNext;render();void loadMissingPhotos(state.pois);
- }catch(e){toast(`${t('places_failed')}: ${e.message}`)}finally{loading=false;render();}
-}
-
+const photoUrl=d=>d?.photo?.thumbnail_url||d?.photo?.original_url||null;
+export function poiCardMarkup(p){const id=String(p.id),im=p.images?.medium||p.images?.thumb||p.image_url,fav=state.favs.has(id),rt=state.route.some(x=>String(x.id)===id);return `<article class="poi-card" data-action="detail" data-id="${esc(id)}"><div class="poi-img">${im?`<img src="${esc(im)}" alt="${esc(p.name)}" loading="lazy" decoding="async">`:'<div class="poi-placeholder">🏛️</div>'}</div><div class="poi-body"><div class="poi-name">${esc(p.name||t('place'))}</div><div class="poi-loc">📍 ${esc(p.city||'')}${p.address?` · ${esc(p.address)}`:''}</div><div class="poi-actions"><button class="poi-act ${fav?'active':''}" type="button" data-action="favorite" data-id="${esc(id)}">${fav?'❤️':'♡'} ${esc(t('favorite'))}</button><button class="poi-act ${rt?'active':''}" type="button" data-action="route" data-id="${esc(id)}">${rt?'✓':'＋'} ${esc(t('route_add'))}</button></div></div></article>`;}
+function render(){const feed=$('#feed');if(!feed)return;feed.innerHTML=loading?`<div class="jarvis-loading"><div class="jarvis-spinner"></div><div class="jarvis-loading-title">${esc(t('searching'))}</div></div>`:state.pois.length?state.pois.map(poiCardMarkup).join(''):`<div class="empty">${esc(t('nothing'))}</div>`;const box=$('#poi-pagination');if(box)box.innerHTML=(state.pois.length||hasNext)?`<button class="poi-page-btn" type="button" data-action="page-prev" data-page="${page-1}" ${page===0||loading?'disabled':''}>←</button><span class="poi-page-label">${esc(t('page'))} ${page+1}</span><button class="poi-page-btn" type="button" data-action="page-next" data-page="${page+1}" ${!hasNext||loading?'disabled':''}>→</button>`:'';}
+async function loadMissingPhotos(places){const missing=places.filter(p=>p?.id&&!p.images?.medium&&!p.images?.thumb&&!p.image_url&&!photoLoading.has(String(p.id)));for(let i=0;i<missing.length;i+=3){await Promise.all(missing.slice(i,i+3).map(async p=>{const id=String(p.id);photoLoading.add(id);try{const d=await request(`/geo/pois/${encodeURIComponent(id)}/wikimedia-photo`);const im=photoUrl(d);if(!im)return;Object.assign(p,{image_url:im,images:{thumb:im,medium:im,original:d.photo.original_url||im}});const card=[...document.querySelectorAll('#feed .poi-card')].find(el=>el.dataset.id===id);const media=card?.querySelector('.poi-img');if(media)media.innerHTML=`<img src="${esc(im)}" alt="${esc(p.name||t('place'))}" loading="lazy" decoding="async">`;}catch(_){ }finally{photoLoading.delete(id);}}));}}
+export async function loadPlaces(){go('cards');page=0;cache.clear();key=queryKey();state.pois=[];hasNext=false;$('#feed').innerHTML=`<div class="jarvis-loading"><div class="jarvis-spinner"></div><div class="jarvis-loading-title">${esc(t('searching'))}</div></div>`;$('#cards-title').textContent=state.city||t('places');await loadPage(0);}
+export async function loadPage(next){if(next<0||loading)return;const k=queryKey();if(k!==key){cache.clear();key=k;page=0;hasNext=false;if(next!==0)next=0;}if(cache.has(next)){const c=cache.get(next);page=next;state.pois=c.places;hasNext=c.hasNext;render();void loadMissingPhotos(state.pois);return;}loading=true;render();try{const d=await request('/pois/query',{method:'POST',body:JSON.stringify({region:state.region,city:state.city,tags:[...state.tags],limit:PAGE+1,offset:next*PAGE})});const pois=Array.isArray(d?.pois)?d.pois:[];const c={places:pois.slice(0,PAGE),hasNext:pois.length>PAGE};cache.set(next,c);page=next;state.pois=c.places;hasNext=c.hasNext;render();void loadMissingPhotos(state.pois);}catch(e){toast(`${t('places_failed')}: ${e.message}`)}finally{loading=false;render();}}
 export async function toggleFavorite(id){if(!telegramUserId())return toast(t('tg_only'));try{const d=await request('/favorites/toggle',{method:'POST',body:JSON.stringify({poi_id:String(id)})});d?.favorited?state.favs.add(String(id)):state.favs.delete(String(id));render();persist();haptic();window.dispatchEvent(new CustomEvent('jarvis:favorites-changed'));}catch(e){toast(`Не удалось изменить избранное: ${e.message}`)}}
 export function toggleRoute(id){const k=String(id),found=state.route.find(x=>String(x.id)===k);if(found)state.route=state.route.filter(x=>String(x.id)!==k);else{const p=state.pois.find(x=>String(x.id)===k);if(p)state.route.push(p)}updateFab();render();persist();haptic();}
 export function updateFab(){const fab=$('#fab'),count=$('#fab-count');if(!fab)return;fab.classList.toggle('hidden',!state.route.length);if(count)count.textContent=state.route.length;}
-export async function openDetail(id){try{const p=await request(`/pois/${encodeURIComponent(id)}`),im=p.images?.large||p.images?.medium||p.images?.thumb||p.image_url,modal=document.createElement('div');modal.className='jarvis-modal';modal.innerHTML=`<div class="jarvis-modal-card"><button class="jarvis-close" type="button" data-action="close-modal">×</button>${im?`<img class="jarvis-detail-image" src="${esc(im)}" alt="${esc(p.name)}" decoding="async">`:'<div class="poi-placeholder">🏛️</div>'}<h2>${esc(p.name||t('place'))}</h2><p>📍 ${esc(p.city||'')}${p.address?`<br>🏠 ${esc(p.address)}`:''}</p><div class="jarvis-modal-actions"><button class="btn-main" type="button" data-action="favorite" data-id="${esc(String(p.id))}">♡ ${esc(t('favorite'))}</button><button class="btn-route" type="button" data-action="route" data-id="${esc(String(p.id))}">＋ ${esc(t('route_add'))}</button></div></div>`;modal.addEventListener('click',e=>{if(e.target===modal)modal.remove()});document.body.appendChild(modal);}catch(e){toast(`Не удалось загрузить место: ${e.message}`)}}
+export async function openDetail(id){try{const d=await request(`/geo/pois/${encodeURIComponent(id)}/wikimedia-detail`);const im=photoUrl(d);const modal=document.createElement('div');modal.className='jarvis-modal';modal.innerHTML=`<div class="jarvis-modal-card"><button class="jarvis-close" type="button" data-action="close-modal">×</button>${im?`<img class="jarvis-detail-image" src="${esc(im)}" alt="${esc(d.name)}" decoding="async">`:'<div class="poi-placeholder">🏛️</div>'}<h2>${esc(d.name||t('place'))}</h2><p>📍 ${esc(d.city||'')}${d.address?`<br>🏠 ${esc(d.address)}`:''}</p><div class="jarvis-modal-actions"><button class="btn-main" type="button" data-action="favorite" data-id="${esc(String(d.id))}">♡ ${esc(t('favorite'))}</button><button class="btn-route" type="button" data-action="route" data-id="${esc(String(d.id))}">＋ ${esc(t('route_add'))}</button></div></div>`;modal.addEventListener('click',e=>{if(e.target===modal)modal.remove()});document.body.appendChild(modal);}catch(e){toast(`Не удалось загрузить место: ${e.message}`)}}
 export async function loadFavorites(){if(!telegramUserId())return;try{const d=await request('/favorites/me');state.favs=new Set((d?.favorites||[]).map(x=>String(x.place_id)));persist();}catch(e){console.warn('favorites',e)}}
