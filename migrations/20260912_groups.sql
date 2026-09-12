@@ -1,0 +1,6 @@
+ALTER TABLE groups ADD COLUMN IF NOT EXISTS trip_start DATE;
+CREATE INDEX IF NOT EXISTS ix_groups_trip_start ON groups(trip_start);
+CREATE TABLE IF NOT EXISTS group_proposals(id SERIAL PRIMARY KEY,group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,author_id BIGINT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,place_id VARCHAR NOT NULL,created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,UNIQUE(group_id,place_id));
+CREATE INDEX IF NOT EXISTS ix_group_proposals_group_id ON group_proposals(group_id);
+CREATE TABLE IF NOT EXISTS group_messages(id SERIAL PRIMARY KEY,group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,author_id BIGINT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,text VARCHAR(2000) NOT NULL,created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE INDEX IF NOT EXISTS ix_group_messages_group_id ON group_messages(group_id);
