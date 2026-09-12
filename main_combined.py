@@ -34,14 +34,14 @@ fastapi_app.mount(
     StaticFiles(directory=str(MEDIA_DIR)),
     name="media",
 )
+fastapi_app.include_router(photo_warmup_router)
+fastapi_app.include_router(groups_router)
+fastapi_app.include_router(wikimedia_photos_router)
 fastapi_app.mount(
     "/",
     StaticFiles(directory=str(WEB_DIR), html=True),
     name="geoapp",
 )
-fastapi_app.include_router(photo_warmup_router)
-fastapi_app.include_router(groups_router)
-fastapi_app.include_router(wikimedia_photos_router)
 
 logger = logging.getLogger("telebot")
 logger.setLevel(logging.CRITICAL)
