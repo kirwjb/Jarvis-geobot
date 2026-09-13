@@ -21,6 +21,8 @@ from src.utils.utils import log, error
 
 from src.routers.api_integrated import app as fastapi_app
 from src.routers.photo_warmup import router as photo_warmup_router
+from src.routers.groups import router as groups_router
+from src.routers.wikimedia_photos import router as wikimedia_photos_router
 
 WEB_DIR = Path(__file__).resolve().parent / "frontend"
 MEDIA_DIR = Path(__file__).resolve().parent / "media"
@@ -32,12 +34,14 @@ fastapi_app.mount(
     StaticFiles(directory=str(MEDIA_DIR)),
     name="media",
 )
+fastapi_app.include_router(photo_warmup_router)
+fastapi_app.include_router(groups_router)
+fastapi_app.include_router(wikimedia_photos_router)
 fastapi_app.mount(
     "/",
     StaticFiles(directory=str(WEB_DIR), html=True),
     name="geoapp",
 )
-fastapi_app.include_router(photo_warmup_router)
 
 logger = logging.getLogger("telebot")
 logger.setLevel(logging.CRITICAL)
