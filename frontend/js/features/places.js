@@ -1,6 +1,6 @@
 import { state, persist, telegramUserId } from '../core/state.js';
 import { request } from '../core/api.js';
-import { $, toast, haptic } from '../ui/helpers.js';
+import { $, esc, toast, haptic } from '../ui/helpers.js';
 import { go } from '../core/router.js';
 import { t } from '../ui/language.js';
 import { placesState, resetPlacesState, buildPlacesQueryKey } from './places/state.js';
@@ -57,7 +57,7 @@ export async function openDetail(id) {
     const image = photoUrl(data);
     const modal = document.createElement('div');
     modal.className = 'jarvis-modal';
-    modal.innerHTML = `<div class="jarvis-modal-card"><button class="jarvis-close" type="button" data-action="close-modal">×</button>${image ? `<img class="jarvis-detail-image" src="${image}" alt="${data.name || ''}" decoding="async">` : '<div class="poi-placeholder">🏛️</div>'}<h2>${data.name || t('place')}</h2><p>📍 ${data.city || ''}${data.address ? `<br>🏠 ${data.address}` : ''}</p><div class="jarvis-modal-actions"><button class="btn-main" type="button" data-action="favorite" data-id="${String(data.id)}">♡ ${t('favorite')}</button><button class="btn-route" type="button" data-action="route" data-id="${String(data.id)}">＋ ${t('route_add')}</button></div></div>`;
+    modal.innerHTML = `<div class="jarvis-modal-card"><button class="jarvis-close" type="button" data-action="close-modal">×</button>${image ? `<img class="jarvis-detail-image" src="${esc(image)}" alt="${esc(data.name || '')}" decoding="async">` : '<div class="poi-placeholder">🏛️</div>'}<h2>${esc(data.name || t('place'))}</h2><p>📍 ${esc(data.city || '')}${data.address ? `<br>🏠 ${esc(data.address)}` : ''}</p><div class="jarvis-modal-actions"><button class="btn-main" type="button" data-action="favorite" data-id="${esc(String(data.id))}">♡ ${esc(t('favorite'))}</button><button class="btn-route" type="button" data-action="route" data-id="${esc(String(data.id))}">＋ ${esc(t('route_add'))}</button></div></div>`;
     modal.addEventListener('click', (event) => { if (event.target === modal) modal.remove(); });
     document.body.appendChild(modal);
   } catch (error) {
