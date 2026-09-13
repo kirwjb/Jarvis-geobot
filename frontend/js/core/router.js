@@ -1,6 +1,8 @@
 import { state, persist, tg } from './state.js';
 import { $, $$ } from '../ui/helpers.js';
 
+let backButtonBound = false;
+
 /** Activate one screen and keep Telegram BackButton plus persisted screen state in sync. */
 export function go(id, {save=true}={}) {
   const target = document.getElementById(id);
@@ -17,7 +19,9 @@ export function go(id, {save=true}={}) {
 
 /** Configure Telegram's native Back button as the only way out of a focused POI feed. */
 export function initTelegramBackButton() {
-  tg?.BackButton?.onClick?.(() => {
+  if (backButtonBound || !tg?.BackButton?.onClick) return;
+  backButtonBound = true;
+  tg.BackButton.onClick(() => {
     const map = { regions:'splash', cities:'regions', tags:'cities', cards:'tags', favorites:'splash', groups:'splash', group:'groups' };
     if (state.screen === 'weather') return go(state.mode === 'weather' ? 'cities' : 'tags');
     if (state.screen === 'route') return go(state.pois.length ? 'cards' : 'tags');

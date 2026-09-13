@@ -10,10 +10,13 @@ import { loadFavoritesScreen } from '../features/favorites.js';
 import { renderRoute, removeRoute, buildRoute, copyRoute, openRoute } from '../features/route.js';
 import { loadGroups, openGroup, createGroup, invite, send, vote, toggleVoting, saveDate, proposePlace, submitProposal } from '../features/groups.js';
 
+let appEventsBound = false;
+
 /** Dispatch a delegated click to the feature that owns the requested action. */
 function handleClick(event) {
   const element = event.target.closest('[data-action]');
   if (!element || !document.body.contains(element)) return;
+  if (element.closest('.bottom-nav-item')) return;
   const action = element.dataset.action;
   if (action === 'theme') { event.preventDefault(); toggleTheme(); return; }
   if (action === 'language') { event.preventDefault(); toggleLanguage(); return; }
@@ -55,6 +58,9 @@ function handleInput(event) {
 
 /** Install the single application-wide event delegation layer during bootstrap. */
 export function bindAppEvents() {
+  if (appEventsBound) return;
+  appEventsBound = true;
+
   document.addEventListener('click', handleClick);
   document.addEventListener('input', handleInput);
   $('#fab')?.addEventListener('click', () => { go('route'); renderRoute(); });
@@ -64,7 +70,12 @@ export function bindAppEvents() {
     event.preventDefault();
     if (state.screen === 'cards') return;
     const tab = item.dataset.tab;
-    if (tab === 'travel') { state.mode='travel'; setTab(tab); go('splash'); return; }
+    if (tab === 'travel') {
+      state.mode = 'travel';
+      setTab(tab);
+      go(state.region && state.city ? 'cards' : 'regions');
+      return;
+    }
     if (tab === 'weather') { state.mode='weather'; setTab(tab); go(state.city && state.region ? 'weather' : 'regions'); if (state.city && state.region) loadWeather(); return; }
     if (tab === 'favorites') { setTab(tab); go('favorites'); loadFavoritesScreen(); return; }
     if (tab === 'groups') { setTab(tab); go('groups'); loadGroups(); }
