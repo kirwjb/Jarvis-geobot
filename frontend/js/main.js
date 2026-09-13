@@ -8,11 +8,11 @@ import { loadWeather, renderWeather } from './features/weather.js';
 import { loadFavorites, toggleFavorite, toggleRoute, openDetail, loadPage, updateFab } from './features/places.js';
 import { renderRoute, removeRoute, buildRoute, copyRoute, openRoute } from './features/route.js';
 import { installExtraNavigation } from './features/navigation-extra.js';
-import { loadGroups, openGroup, createGroup, invite, send, vote, toggleVoting, saveDate, proposePlace } from './features/groups.js';
+import { loadGroups, openGroup, createGroup, invite, send, vote, toggleVoting, saveDate, proposePlace, submitProposal } from './features/groups.js';
 
 if (tg) { try { tg.ready(); tg.expand(); } catch (_) {} }
 
-/** Global click delegation. Feature modules own their domain logic. */
+/** Global event delegation. Domain behavior remains inside feature modules. */
 function handleClick(event) {
   const el = event.target.closest('[data-action]');
   if (!el || !document.body.contains(el)) return;
@@ -42,12 +42,13 @@ function handleClick(event) {
   if (action === 'group-invite') { invite(); return; }
   if (action === 'group-send') { send(); return; }
   if (action === 'group-date-save') { saveDate(); return; }
-  if (action === 'group-propose') { proposePlace(el.dataset.place); return; }
+  if (action === 'group-propose') { proposePlace(); return; }
+  if (action === 'group-propose-place') { submitProposal(el.dataset.place); return; }
   if (action === 'group-vote') { vote(el.dataset.place); return; }
   if (action === 'group-toggle-voting') { toggleVoting(); return; }
 }
 
-/** Route search input events to the feature that owns each search field. */
+/** Route search input events to their owning feature. */
 function handleInput(event) {
   if (event.target.matches('#region-search')) filterRegions(event.target.value);
   if (event.target.matches('#city-search')) filterCities(event.target.value);
