@@ -77,4 +77,8 @@ export async function loadFavorites() {
   }
 }
 
+export function updateFab() {
+  updateRouteFab();
+}
+
 export { loadPage, poiCardMarkup, renderPlaces, loadMissingPhotos, updateRouteFab };

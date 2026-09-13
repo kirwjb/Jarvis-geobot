@@ -1,56 +1,60 @@
 from telebot import types
 from telebot.async_telebot import AsyncTeleBot
 
-
 MINI_APP_URL = "https://t.me/Jarvis67_676767bot/jarvis_geo"
 
+START_TEXT = """🤖 **JARVIS GeoBot**
 
-START_TEXT = """🤖 <b>JARVIS GeoBot</b>
+Исследуй города, находи интересные места, сохраняй избранное, планируй маршруты и проверяй погоду в пару кликов.
 
-Помогу исследовать города, находить интересные места, строить маршруты и смотреть погоду.
+**📋 Доступные команды:**
+`/start` — открыть JARVIS
+`/help` — главное меню и справка
+`/support` — связаться с разработчиком
 
-Открой Mini App кнопкой ниже.
+*Разработано **Кириллом Морозом** (kirwjb@gmail.com)*"""
 
-<b>Частые вопросы</b>
 
-<b>Как начать?</b>
-Нажми «Открыть JARVIS» и выбери регион и город.
-
-<b>Как найти места?</b>
-После выбора города можно открыть ленту мест и отфильтровать её по категориям.
-
-<b>Как добавить место в избранное?</b>
-Нажми ❤️ на карточке места. Избранное доступно во вкладке «Избранное».
-
-<b>Как построить маршрут?</b>
-Добавляй интересные места кнопкой «＋» в маршрут, затем открой экран маршрута.
-
-<b>Почему фотографии загружаются не сразу?</b>
-Для некоторых мест изображение подгружается отдельно. Если источник фотографии не найден, останется стандартная заглушка.
-
-<b>Можно ли открыть погоду?</b>
-Да. Выбери город и перейди в раздел погоды.
-
-<b>Что делать, если что-то не работает?</b>
-Попробуй вернуться назад и открыть раздел заново. Если проблема повторяется — сообщи, что именно произошло и на каком экране.
-
-Команда <code>/help</code> показывает эту же памятку."""
+def _open_app_keyboard() -> types.InlineKeyboardMarkup:
+    keyboard = types.InlineKeyboardMarkup(row_width=1)
+    keyboard.add(
+        types.InlineKeyboardButton(
+            text="🗺 Открыть JARVIS",
+            url=MINI_APP_URL,
+        ),
+        types.InlineKeyboardButton(
+            text="💬 Связаться с поддержкой",
+            callback_data="help_support",
+        ),
+    )
+    return keyboard
 
 
 async def register_start_help_handlers(bot: AsyncTeleBot) -> None:
+
     @bot.message_handler(commands=["start", "help"])
-    async def start_help(message: types.Message):
-        keyboard = types.InlineKeyboardMarkup()
-        keyboard.add(
-            types.InlineKeyboardButton(
-                text="🗺 Открыть JARVIS",
-                url=MINI_APP_URL,
-            )
-        )
+    async def start_help(message: types.Message) -> None:
         await bot.send_message(
             message.chat.id,
             START_TEXT,
             parse_mode="HTML",
-            reply_markup=keyboard,
+            reply_markup=_open_app_keyboard(),
             disable_web_page_preview=True,
+        )
+
+    @bot.message_handler(commands=["support"])
+    async def support_command(message: types.Message) -> None:
+        await bot.send_message(
+            message.chat.id,
+            "🛠 Возникли вопросы или предложения? Напишите автору: kirwjb@gmail.com",
+            parse_mode="HTML",
+        )
+
+    @bot.callback_query_handler(func=lambda call: call.data == "help_support")
+    async def support_callback(call: types.CallbackQuery) -> None:
+        await bot.answer_callback_query(call.id)
+        await bot.send_message(
+            call.message.chat.id,
+            "🛠 Возникли вопросы или предложения? Напишите автору: kirwjb@gmail.com",
+            parse_mode="HTML",
         )
