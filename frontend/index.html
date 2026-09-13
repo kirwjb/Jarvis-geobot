@@ -10,7 +10,7 @@
 <link rel="stylesheet" href="/css/components.css?v=20260906-5">
 <link rel="stylesheet" href="/css/interactions.css?v=20260906-3">
 <link rel="stylesheet" href="/css/weather.css?v=20260906-2">
-<link rel="stylesheet" href="/css/groups.css?v=20260913-1">
+<link rel="stylesheet" href="/css/groups.css?v=20260913-2">
 <link rel="icon" type="image/svg+xml" href="/logo.svg?v=2">
 </head>
 <body>
@@ -26,12 +26,13 @@
 <section class="screen" id="tags"><button class="back" type="button" data-action="back" data-screen="cities">← <span data-i18n="back">Назад</span></button><div class="topbar"><h2 data-i18n="interests">Интересы</h2><span class="step">3/4</span></div><p class="hint" data-i18n="interests_hint">Можно выбрать несколько категорий</p><div class="tags" id="tags-list"></div><button class="btn-main" id="btn-tags" type="button" data-action="show-places" disabled data-i18n="show_places">Показать места</button></section>
 <section class="screen" id="cards"><button class="back" type="button" data-action="back" data-screen="tags">← <span data-i18n="back">Назад</span></button><div class="topbar"><h2 id="cards-title" data-i18n="places">Места</h2></div><div class="feed" id="feed"></div><div id="poi-pagination" class="poi-pagination"></div></section>
 <section class="screen" id="route"><button class="back" type="button" data-action="back" data-screen="cards">← <span data-i18n="back">Назад</span></button><div class="topbar"><h2 data-i18n="route">Мой маршрут</h2></div><div id="route-list"></div><button class="btn-route" id="btn-build" type="button" data-action="build-route" disabled data-i18n="build_route">Построить маршрут</button></section>
+<section class="screen" id="favorites"><button class="back" type="button" data-action="back" data-screen="splash">← <span data-i18n="back">Назад</span></button><div class="topbar"><h2 data-i18n="favorites">Избранное</h2></div><div class="feed" id="favorites-list"></div></section>
 <section class="screen" id="groups"><div class="topbar"><h2 data-i18n="groups">Группы</h2></div><div class="groups-toolbar"><button class="btn-main" type="button" data-action="group-create">+ Создать группу</button></div><div id="groups-list" class="groups-list"></div></section>
 <section class="screen" id="group"><div class="group-header"><button class="back" type="button" data-action="back" data-screen="groups">← <span data-i18n="back">Назад</span></button><div class="topbar"><h2 id="group-title">Группа</h2></div></div><div class="group-meta"><label>Дата начала поездки<input id="group-date" type="date"></label></div><div id="group-members" class="group-members"></div><div class="group-actions"><button type="button" class="btn-main" data-action="group-date-save">Сохранить дату</button><button type="button" class="btn-main" data-action="group-invite">Пригласить @username</button><button type="button" class="btn-route" id="group-voting" data-action="group-toggle-voting">Начать голосование</button><button type="button" class="btn-route" data-action="group-propose">Предложить место</button></div><section class="group-section"><h3>Предложения маршрута</h3><div id="group-proposals" class="group-proposals"></div></section><section class="group-section"><h3>Чат</h3><div id="group-chat" class="group-chat"></div><div class="group-chat-input"><input id="group-message" type="text" maxlength="2000" placeholder="Сообщение..."><button type="button" data-action="group-send">Отправить</button></div></section></section>
 </main>
 <button class="fab hidden" id="fab" type="button">🗺 <span data-i18n="route_add">Маршрут</span> <span id="fab-count">0</span></button>
-<nav class="bottom-nav" id="bottom-nav"><button class="bottom-nav-item active" type="button" data-tab="travel"><span>🧭</span><span data-i18n="travel">Путешествия</span></button><button class="bottom-nav-item" type="button" data-tab="weather"><span>☀️</span><span data-i18n="weather">Погода</span></button><button class="bottom-nav-item" type="button" data-action="groups"><span>👥</span><span data-i18n="groups">Группы</span></button></nav>
+<nav class="bottom-nav" id="bottom-nav"><button class="bottom-nav-item active" type="button" data-tab="travel"><span>🧭</span><span data-i18n="travel">Путешествия</span></button><button class="bottom-nav-item" type="button" data-tab="weather"><span>☀️</span><span data-i18n="weather">Погода</span></button><button class="bottom-nav-item" type="button" data-action="favorites" data-tab="favorites"><span>♡</span><span data-i18n="favorites">Избранное</span></button><button class="bottom-nav-item" type="button" data-action="groups" data-tab="groups"><span>👥</span><span data-i18n="groups">Группы</span></button></nav>
 <div class="toast" id="toast"></div>
-<script type="module" src="/js/main.js?v=20260913-1"></script>
+<script type="module" src="/js/main.js?v=20260913-2"></script>
 </body>
 </html>
