@@ -2,9 +2,9 @@ import { state } from '../core/state.js';
 import { $ } from '../ui/helpers.js';
 import { toggleTheme } from '../ui/theme.js';
 import { toggleLanguage } from '../ui/language.js';
-import { go, initTelegramBackButton, bindNavigation, setTab } from '../core/router.js';
+import { go, initTelegramBackButton, setTab } from '../core/router.js';
 import { loadRegions, pickRegion, pickCity, toggleTag, filterRegions, filterCities, renderTags, startPlaces } from '../features/travel.js';
-import { loadWeather, renderWeather } from '../features/weather.js';
+import { loadWeather } from '../features/weather.js';
 import { loadFavorites, toggleFavorite, toggleRoute, openDetail, loadPage, updateFab } from '../features/places.js';
 import { loadFavoritesScreen } from '../features/favorites.js';
 import { renderRoute, removeRoute, buildRoute, copyRoute, openRoute } from '../features/route.js';
@@ -44,7 +44,7 @@ function handleClick(event) {
   if (action === 'group-propose') { event.preventDefault(); proposePlace(); return; }
   if (action === 'group-propose-place') { event.preventDefault(); submitProposal(element.dataset.place); return; }
   if (action === 'group-vote') { event.preventDefault(); vote(element.dataset.place); return; }
-  if (action === 'group-toggle-voting') { event.preventDefault(); toggleVoting(); }
+  if (action === 'group-toggle-voting') { event.preventDefault(); toggleVoting(); return; }
 }
 
 /** Route search input changes to the travel feature without creating feature-specific listeners. */
@@ -61,31 +61,17 @@ export function bindAppEvents() {
   $('#bottom-nav')?.addEventListener('click', event => {
     const item = event.target.closest('[data-tab]');
     if (!item) return;
-    const tab = item.dataset.tab;
     event.preventDefault();
-    if (tab === 'travel') { setTab('travel'); go('splash'); return; }
-    if (tab === 'weather') {
-      setTab('weather');
-      go('weather');
-      if (state.city && state.region) loadWeather();
-      return;
-    }
-    if (tab === 'favorites') {
-      setTab('favorites');
-      go('favorites');
-      loadFavoritesScreen();
-      return;
-    }
-    if (tab === 'groups') {
-      setTab('groups');
-      go('groups');
-      loadGroups();
-    }
+    if (state.screen === 'cards') return;
+    const tab = item.dataset.tab;
+    if (tab === 'travel') { state.mode='travel'; setTab(tab); go('splash'); return; }
+    if (tab === 'weather') { state.mode='weather'; setTab(tab); go(state.city && state.region ? 'weather' : 'regions'); if (state.city && state.region) loadWeather(); return; }
+    if (tab === 'favorites') { setTab(tab); go('favorites'); loadFavoritesScreen(); return; }
+    if (tab === 'groups') { setTab(tab); go('groups'); loadGroups(); }
   });
   window.addEventListener('jarvis:weather', loadWeather);
   window.addEventListener('jarvis:language', () => { renderTags(); loadRegions(); });
   window.addEventListener('jarvis:favorites-changed', () => { loadFavorites(); if (state.screen === 'favorites') loadFavoritesScreen(); });
-  bindNavigation();
   initTelegramBackButton();
 }
 
