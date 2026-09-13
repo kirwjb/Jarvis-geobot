@@ -1,89 +1,41 @@
 import { tg, state, persist } from './core/state.js';
-import { $ } from './ui/helpers.js';
-import { applyTheme, toggleTheme } from './ui/theme.js';
-import { applyLanguage, toggleLanguage } from './ui/language.js';
-import { go, initTelegramBackButton, bindNavigation } from './core/router.js';
-import { loadRegions, pickRegion, pickCity, toggleTag, filterRegions, filterCities, renderTags, startPlaces } from './features/travel.js';
-import { loadWeather, renderWeather } from './features/weather.js';
-import { loadFavorites, toggleFavorite, toggleRoute, openDetail, loadPage, updateFab } from './features/places.js';
-import { renderRoute, removeRoute, buildRoute, copyRoute, openRoute } from './features/route.js';
-import { installExtraNavigation } from './features/navigation-extra.js';
-import { loadGroups, openGroup, createGroup, invite, send, vote, toggleVoting, saveDate, proposePlace, submitProposal } from './features/groups.js';
+import { applyTheme } from './ui/theme.js';
+import { applyLanguage } from './ui/language.js';
+import { go } from './core/router.js';
+import { loadRegions } from './features/travel.js';
+import { loadFavorites, updateFab } from './features/places.js';
+import { renderTags } from './features/travel.js';
+import { bindAppEvents } from './app/events.js';
+import { request } from './core/api.js';
 
-if (tg) { try { tg.ready(); tg.expand(); } catch (_) {} }
-
-/** Global event delegation. Domain behavior remains inside feature modules. */
-function handleClick(event) {
-  const el = event.target.closest('[data-action]');
-  if (!el || !document.body.contains(el)) return;
-  const action = el.dataset.action;
-  if (action === 'theme') { event.preventDefault(); toggleTheme(); return; }
-  if (action === 'language') { event.preventDefault(); toggleLanguage(); return; }
-  if (action === 'start') { event.preventDefault(); go('regions'); loadRegions(); return; }
-  if (action === 'back') { event.preventDefault(); go(el.dataset.screen || 'regions'); return; }
-  if (action === 'region') { pickRegion(el.dataset.id); return; }
-  if (action === 'city') { event.preventDefault(); pickCity(el.dataset.city); return; }
-  if (action === 'tag') { toggleTag(el.dataset.id); return; }
-  if (action === 'show-places') { event.preventDefault(); startPlaces(); return; }
-  if (action === 'choose-city') { state.mode = 'weather'; go('regions'); return; }
-  if (action === 'weather-refresh') { loadWeather(); return; }
-  if (action === 'page-prev' || action === 'page-next') { event.preventDefault(); loadPage(Number(el.dataset.page)); return; }
-  if (action === 'favorite') { event.stopPropagation(); toggleFavorite(el.dataset.id); return; }
-  if (action === 'route') { event.stopPropagation(); toggleRoute(el.dataset.id); return; }
-  if (action === 'detail') { openDetail(el.dataset.id); return; }
-  if (action === 'remove-route') { removeRoute(el.dataset.id); return; }
-  if (action === 'build-route') { buildRoute(); return; }
-  if (action === 'open-route') { openRoute(el.dataset.url); return; }
-  if (action === 'copy-route') { copyRoute(el.dataset.url); return; }
-  if (action === 'close-modal') { el.closest('.jarvis-modal')?.remove(); return; }
-  if (action === 'groups') { event.preventDefault(); go('groups'); loadGroups(); return; }
-  if (action === 'group-open') { openGroup(Number(el.dataset.id)); return; }
-  if (action === 'group-create') { createGroup(); return; }
-  if (action === 'group-invite') { invite(); return; }
-  if (action === 'group-send') { send(); return; }
-  if (action === 'group-date-save') { saveDate(); return; }
-  if (action === 'group-propose') { proposePlace(); return; }
-  if (action === 'group-propose-place') { submitProposal(el.dataset.place); return; }
-  if (action === 'group-vote') { vote(el.dataset.place); return; }
-  if (action === 'group-toggle-voting') { toggleVoting(); return; }
+/** Initialize Telegram WebApp capabilities before feature bootstrap. */
+function initTelegram() {
+  if (!tg) return;
+  try { tg.ready(); tg.expand(); } catch (_) { /* Browser fallback. */ }
 }
 
-/** Route search input events to their owning feature. */
-function handleInput(event) {
-  if (event.target.matches('#region-search')) filterRegions(event.target.value);
-  if (event.target.matches('#city-search')) filterCities(event.target.value);
+/** Restore persisted application data needed by the initial screen. */
+async function restoreInitialData() {
+  await Promise.all([loadRegions(), loadFavorites()]);
+  if (!state.region) return;
+  try {
+    state.cities = await request(`/cities/${encodeURIComponent(state.region)}`) || [];
+  } catch (_) {
+    state.cities = [];
+  }
 }
 
-function bind() {
-  document.addEventListener('click', handleClick);
-  document.addEventListener('input', handleInput);
-  $('#fab')?.addEventListener('click', () => { go('route'); renderRoute(); });
-  $('#bottom-nav')?.addEventListener('click', event => {
-    if (event.target.closest('[data-tab="weather"]') && state.city && state.region) loadWeather();
-  });
-  window.addEventListener('jarvis:weather', () => loadWeather());
-  window.addEventListener('jarvis:language', () => { renderTags(); if (state.weather) renderWeather(); loadRegions(); });
-  window.addEventListener('jarvis:favorites-changed', () => loadFavorites());
-  bindNavigation();
-  initTelegramBackButton();
-  installExtraNavigation();
-}
-
+/** Bootstrap the shell, global event graph, language, theme and initial API data. */
 async function init() {
-  bind();
+  initTelegram();
+  bindAppEvents();
   applyTheme(localStorage.getItem('jarvis-theme') || 'dark', false);
   applyLanguage(localStorage.getItem('jarvis-language') || 'RU', false);
   renderTags();
   updateFab();
   go('splash', { save: false });
-  await Promise.all([loadRegions(), loadFavorites()]);
-  if (state.region) {
-    try {
-      const { request } = await import('./core/api.js');
-      state.cities = await request(`/cities/${encodeURIComponent(state.region)}`) || [];
-    } catch (_) {}
-  }
+  await restoreInitialData();
   persist();
 }
 
-init().catch(error => console.error('JARVIS init failed', error));
+init().catch((error) => console.error('JARVIS init failed', error));
