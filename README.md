@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <code>v2.0.1</code> · <strong>Stable Release</strong>
+  <code>v2.1.08102026</code> · <strong>Stable Release</strong>
 </p>
 
 ---
