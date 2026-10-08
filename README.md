@@ -3,7 +3,7 @@
 > A Telegram travel assistant for discovering places, planning routes, checking weather, and exploring cities.
 
 <p align="center">
-  <img src="frontend/logo.svg" alt="JARVIS GeoBot" width="96">
+  <img src="frontend/logo.svg" alt="JARVIS GeoBot" width="160">
 </p>
 
 <p align="center">
@@ -164,26 +164,6 @@ The Mini App can display:
 - Cache status
 
 Weather information can be refreshed directly from the Mini App.
-
----
-
-## 👥 Group Trips
-
-JARVIS also supports collaborative travel planning.
-
-Groups can be used to build a shared trip with other users.
-
-Group functionality includes:
-
-- Creating groups
-- Adding participants
-- Managing members
-- Selecting places together
-- Voting for locations
-- Approving places for a shared route
-- Switching between individual and group planning
-
-The group creator has extended management permissions.
 
 ---
 
@@ -626,7 +606,6 @@ Planned development directions include:
 - [ ] Improve place search and filtering
 - [ ] Improve photo coverage and fallback sources
 - [ ] Improve route optimization
-- [ ] Expand group trip functionality
 - [ ] Improve Telegram Mini App UX
 - [ ] Expand localization
 - [ ] Add additional geographic data sources
