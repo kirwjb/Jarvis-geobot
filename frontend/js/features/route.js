@@ -1,17 +1,54 @@
-import { state, persist, tg } from '../core/state.js';
-import { request } from '../core/api.js';
-import { $, esc, toast } from '../ui/helpers.js';
-import { go } from '../core/router.js';
-import { updateFab } from './places.js';
-import { t } from '../ui/language.js';
+import { state, persist, tg } from '../core/state.js?v=1791475344';
+import { request } from '../core/api.js?v=1791475344';
+import { $, esc, toast, haptic } from '../ui/helpers.js?v=1791475344';
+import { go } from '../core/router.js?v=1791475344';
+import { t } from '../ui/language.js?v=1791475344';
 
-export function renderRoute(){
- const list=$('#route-list'),btn=$('#btn-build');if(!list||!btn)return;
- if(!state.route.length){list.innerHTML=`<div class="route-empty">${esc(t('route_empty'))}</div>`;btn.disabled=true;return}
- btn.disabled=state.route.length<2;
- list.innerHTML=state.route.map((p,i)=>`<div class="route-item"><div class="route-num">${i+1}</div><div class="route-info"><div class="route-name">${esc(p.name)}</div><div class="route-city">${esc(p.city||'')}</div></div><button class="route-del" type="button" data-action="remove-route" data-id="${esc(String(p.id))}">✕</button></div>`).join('');
+/** Update the floating route button state and counter based on current route points. */
+export function updateRouteFab() {
+  const fab = $('#fab');
+  if (!fab) return;
+  fab.classList.toggle('hidden', !state.route.length);
+  const count = $('#fab-count');
+  if (count) count.textContent = state.route.length;
 }
-export function removeRoute(id){state.route=state.route.filter(p=>String(p.id)!==String(id));updateFab();renderRoute();persist();}
+export const updateFab = updateRouteFab;
+
+/** Add or remove a place from the route and update route indicators. */
+export function toggleRoute(id) {
+  const key = String(id);
+  const exists = state.route.some((item) => String(item.id) === key);
+  if (exists) {
+    state.route = state.route.filter((item) => String(item.id) !== key);
+  } else {
+    const place = state.pois.find((item) => String(item.id) === key);
+    if (place) state.route.push(place);
+  }
+  updateRouteFab();
+  persist();
+  haptic();
+  window.dispatchEvent(new CustomEvent('jarvis:route-changed', { detail: { id: key } }));
+}
+
+export function renderRoute() {
+  const list = $('#route-list'), btn = $('#btn-build');
+  if (!list || !btn) return;
+  if (!state.route.length) {
+    list.innerHTML = `<div class="route-empty">${esc(t('route_empty'))}</div>`;
+    btn.disabled = true;
+    return;
+  }
+  btn.disabled = state.route.length < 2;
+  list.innerHTML = state.route.map((p, i) => `<div class="route-item"><div class="route-num">${i + 1}</div><div class="route-info"><div class="route-name">${esc(p.name)}</div><div class="route-city">${esc(p.city || '')}</div></div><button class="route-del" type="button" data-action="remove-route" data-id="${esc(String(p.id))}">✕</button></div>`).join('');
+}
+
+export function removeRoute(id) {
+  state.route = state.route.filter((p) => String(p.id) !== String(id));
+  updateRouteFab();
+  renderRoute();
+  persist();
+  window.dispatchEvent(new CustomEvent('jarvis:route-changed', { detail: { id: String(id) } }));
+}
 export async function buildRoute(){
  if(state.route.length<2)return toast('Добавьте минимум 2 точки');
  const btn=$('#btn-build');if(btn)btn.disabled=true;

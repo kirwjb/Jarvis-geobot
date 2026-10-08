@@ -3,6 +3,7 @@
 import hashlib
 import hmac
 import json
+import os
 import time
 from typing import Any
 from urllib.parse import parse_qsl
@@ -10,6 +11,20 @@ from urllib.parse import parse_qsl
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+
+MOCK_USER = {
+    "id": 999999999,
+    "first_name": "Admin",
+    "last_name": "Developer",
+    "username": "mock_admin",
+    "is_admin": True,
+    "language_code": "ru",
+}
+
+
+def is_mock_auth_enabled() -> bool:
+    """Check whether mock authentication mode is enabled (--auth=0)."""
+    return os.getenv("MOCK_AUTH") == "1" or os.getenv("JARVIS_MOCK_AUTH") == "1"
 
 
 class TelegramAuthError(ValueError):
@@ -95,7 +110,24 @@ class TelegramAuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
 
-        if not path.startswith("/api/"):
+        # Endpoints that are accessible without Telegram Mini App headers:
+        # - Non-API endpoints (e.g. static files, frontend HTML, /media)
+        # - Auth bootstrap endpoint
+        # - Photo proxy (invoked by <img> tags which cannot attach Authorization headers)
+        # - Health check endpoint
+        if (
+            not path.startswith("/api/")
+            or path == "/api/auth/telegram"
+            or path == "/api/geo/photo-proxy"
+            or path == "/api/health"
+            or path == "/health"
+        ):
+            return await call_next(request)
+
+        # Mock authentication mode: bypass signature verification & inject mock user session
+        if is_mock_auth_enabled():
+            request.state.telegram_user = MOCK_USER
+            request.state.telegram_user_id = MOCK_USER["id"]
             return await call_next(request)
 
         authorization = request.headers.get("Authorization", "")

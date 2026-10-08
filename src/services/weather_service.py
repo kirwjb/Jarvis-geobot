@@ -20,7 +20,10 @@ async def get_weather(city: str) -> str:
 
     try:
         timeout = aiohttp.ClientTimeout(total=8)
-        headers = {"User-Agent": "Jarvis-GeoBot/1.0"}
+        headers = {
+            "User-Agent": "Jarvis-GeoBot/1.0",
+            "ngrok-skip-browser-warning": "true",
+        }
 
         async with aiohttp.ClientSession(timeout=timeout, headers=headers) as session:
             async with session.get(url) as response:

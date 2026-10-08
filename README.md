@@ -6,12 +6,21 @@
   <img src="frontend/logo.svg" alt="JARVIS GeoBot" width="96">
 </p>
 
+```text
+      ██╗  █████╗  ██████╗  ██╗   ██╗ ██╗ ███████╗
+      ██║ ██╔══██╗ ██╔══██╗ ██║   ██║ ██║ ██╔════╝
+      ██║ ███████║ ██████╔╝ ██║   ██║ ██║ ███████╗
+ ██   ██║ ██╔══██║ ██╔══██╗ ╚██╗ ██╔╝ ██║ ╚════██║
+ ╚█████╔╝ ██║  ██║ ██║  ██║  ╚████╔╝  ██║ ███████║
+  ╚════╝  ╚═╝  ╚═╝ ╚═╝  ╚═╝   ╚═══╝   ╚═╝ ╚══════╝
+```
+
 <p align="center">
   <strong>Discover places. Plan routes. Explore more.</strong>
 </p>
 
 <p align="center">
-  <code>v1.4126.060926</code> · <strong>Beta</strong>
+  <code>v2.0.0</code> · <strong>Stable Release</strong>
 </p>
 
 ---

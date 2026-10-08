@@ -1,13 +1,82 @@
 /* Interaction contract: only controls are clickable; layout/text never create hit targets. */
-html,body{cursor:default!important;-webkit-user-select:none;user-select:none}
-input,textarea,[contenteditable=true]{cursor:text!important;-webkit-user-select:text;user-select:text}
-button,a,[role=button]{cursor:pointer!important;user-select:none;-webkit-user-select:none;touch-action:manipulation}
-.screen{position:relative}
-.top-controls{z-index:10000;pointer-events:none!important}
-.top-controls>button{pointer-events:auto!important;position:relative;z-index:10001}
-#splash .splash-wrap{pointer-events:none}
-#splash .splash-wrap>button,#splash .splash-wrap>a,#splash .splash-wrap>input{pointer-events:auto;position:relative;z-index:100}
-#start-travel{cursor:pointer!important;pointer-events:auto!important}
-.bottom-nav{z-index:10000;pointer-events:auto}
-.card,.tag,.back,.btn-main,.btn-route,.bottom-nav-item,.top-control,.poi-act,.poi-page-btn,.fab,.route-del{pointer-events:auto}
-.jarvis-modal{pointer-events:auto}
+html, body {
+  cursor: default !important;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+input, textarea, [contenteditable=true] {
+  cursor: text !important;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+button, a, [role=button] {
+  cursor: pointer !important;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  transition: transform 0.14s cubic-bezier(0.2, 0.8, 0.4, 1), opacity 0.15s ease;
+}
+
+/* Micro-interaction tactile feedback */
+button:active:not(:disabled), [role=button]:active:not(:disabled) {
+  transform: scale(0.975);
+}
+
+.bottom-nav-item:active {
+  transform: scale(0.94);
+}
+
+.screen {
+  position: relative;
+}
+
+.top-controls {
+  z-index: 10000;
+  pointer-events: auto !important;
+}
+
+.top-controls > button,
+.top-control {
+  pointer-events: auto !important;
+  position: relative;
+  z-index: 10001;
+  touch-action: manipulation;
+  cursor: pointer !important;
+}
+
+.top-control * {
+  pointer-events: none;
+}
+
+#splash .splash-wrap {
+  pointer-events: none;
+}
+
+#splash .splash-wrap > button,
+#splash .splash-wrap > a,
+#splash .splash-wrap > input {
+  pointer-events: auto;
+  position: relative;
+  z-index: 100;
+}
+
+#start-travel {
+  cursor: pointer !important;
+  pointer-events: auto !important;
+}
+
+.bottom-nav {
+  z-index: 10000;
+  pointer-events: auto;
+}
+
+.card, .tag, .back, .btn-main, .btn-route, .bottom-nav-item, .top-control, .poi-act, .poi-page-btn, .fab, .route-del {
+  pointer-events: auto;
+}
+
+.jarvis-modal {
+  pointer-events: auto;
+}

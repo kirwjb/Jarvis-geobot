@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# JARVIS CLI Automation Wrapper (Capitalized alias)
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+PYTHON_BIN="python3"
+
+if [ -f "$DIR/venv/bin/python" ]; then
+    PYTHON_BIN="$DIR/venv/bin/python"
+elif [ -f "$DIR/.venv/bin/python" ]; then
+    PYTHON_BIN="$DIR/.venv/bin/python"
+fi
+
+exec "$PYTHON_BIN" "$DIR/jarvis.py" "$@"

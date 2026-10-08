@@ -1,4 +1,3 @@
-# api_integrated.py
 """
 Основной API-слой приложения.
 """
@@ -9,7 +8,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, func, or_
 from src.config import REGIONS, TOKEN
 from src.database.db import AsyncSessionLocal
 from src.database.models import Favorite, Place, PlacePhoto, User
@@ -29,7 +28,14 @@ class RegionResponse(BaseModel): id:str; name:str; cities:List[str]
 class CityResponse(BaseModel): name:str; region:str
 class WeatherResponse(BaseModel):
     city:str; temp:Optional[float]=None; description:str; humidity:Optional[int]=None; wind_speed:Optional[float]=None; pressure:Optional[int]=None; cached:bool=False
-class POIQuery(BaseModel): region:str; city:Optional[str]=None; tags:List[str]=Field(default_factory=list); limit:int=30; offset:int=0
+class POIQuery(BaseModel):
+    region: Optional[str] = None
+    city: Optional[str] = None
+    tags: List[str] = Field(default_factory=list)
+    limit: int = 30
+    offset: int = 0
+    search: Optional[str] = None
+    shuffle: Optional[str] = None
 class POI(BaseModel):
     id:str; name:str; city:str; region:str; address:str; category:str; lat:float; lon:float; hours:Optional[str]=None; phone:Optional[str]=None; image_url:Optional[str]=None; images:Optional[dict]=None
 class POIDetail(POI): photo:Optional[dict]=None
@@ -58,7 +64,7 @@ def normalize_category(value:str)->str:
     if "manor" in value or "усадь" in value:return "manor"
     if "theme_park" in value or "аттракцион" in value:return "theme_park"
     return "misc"
-TAG_CATEGORY_MAP={"architecture":{"castle","church","monument","manor","gallery","ruins"},"nature":{"park","viewpoint","ruins"},"museum":{"museum"},"church":{"church"},"castle":{"castle"},"monument":{"monument"},"park":{"park"}}
+TAG_CATEGORY_MAP={"architecture":{"castle","church","monument","manor","gallery","ruins","memorial","misc"},"nature":{"park","viewpoint","ruins"},"museum":{"museum","gallery"},"church":{"church"},"castle":{"castle"},"monument":{"monument","memorial"},"park":{"park","theme_park"}}
 def expand_poi_tags(tags:list[str])->set[str]:
     categories=set()
     for tag in tags:
@@ -67,9 +73,23 @@ def expand_poi_tags(tags:list[str])->set[str]:
 def normalize_limit(value:int)->int:return min(max(value,1),MAX_POI_LIMIT)
 def normalize_offset(value:int)->int:return max(value,0)
 
+def _normalize_asset_url(url: str | None) -> str | None:
+    if not url: return None
+    url = url.strip()
+    if url.startswith("http://localhost:8000"):
+        url = url.replace("http://localhost:8000", "")
+    elif url.startswith("http://127.0.0.1:8000"):
+        url = url.replace("http://127.0.0.1:8000", "")
+    elif url.startswith("http://"):
+        url = "https://" + url[7:]
+    return url
+
 def _photo_images(photo:PlacePhoto|None)->dict|None:
     if not photo:return None
-    return {"thumb":photo.local_url_thumb or photo.original_url,"medium":photo.local_url_medium or photo.original_url,"original":photo.original_url}
+    thumb=_normalize_asset_url(photo.local_url_thumb or photo.original_url)
+    medium=_normalize_asset_url(photo.local_url_medium or photo.original_url)
+    orig=_normalize_asset_url(photo.original_url)
+    return {"thumb":thumb,"medium":medium,"original":orig}
 def place_to_dict(place:Place,photo:PlacePhoto|None=None)->dict:
     images=_photo_images(photo)
     return {"id":place.place_id,"name":place.name,"city":place.city,"region":place.region,"address":place.address or "","category":place.category,"lat":float(place.lat),"lon":float(place.lon),"hours":place.hours,"phone":place.phone,"image_url":images.get("thumb") if images else None,"images":images}
@@ -93,12 +113,19 @@ async def ensure_place_photo(session,place:Place)->PlacePhoto|None:
     except Exception as exc:
         error(f"Photo hydration failed for {place.place_id}: {exc}")
         return None
-async def get_places_from_db(session,*,region:Optional[str]=None,city:Optional[str]=None,category:Optional[str|list[str]|set[str]]=None,offset:int=0,limit:int=MAX_POI_LIMIT)->list[Place]:
+async def get_places_from_db(session,*,region:Optional[str]=None,city:Optional[str]=None,category:Optional[str|list[str]|set[str]]=None,search:Optional[str]=None,shuffle:Optional[str]=None,offset:int=0,limit:int=MAX_POI_LIMIT)->list[Place]:
     query=select(Place)
     if region:query=query.where(Place.region==region)
     if city:query=query.where(Place.city==city)
     if category:query=query.where(Place.category.in_(category) if isinstance(category,(list,set,tuple)) else Place.category==category)
-    result=await session.execute(query.order_by(Place.name.asc()).offset(offset).limit(limit));return list(result.scalars().all())
+    if search and search.strip():
+        term=f"%{search.strip()}%"
+        query=query.where(or_(Place.name.ilike(term),Place.address.ilike(term)))
+    if shuffle and str(shuffle).strip():
+        query=query.order_by(func.md5(Place.place_id.op("||")(str(shuffle).strip())))
+    else:
+        query=query.order_by(Place.name.asc())
+    result=await session.execute(query.offset(offset).limit(limit));return list(result.scalars().all())
 async def get_place_by_id(session,place_id:str)->Optional[Place]:
     result=await session.execute(select(Place).where(Place.place_id==place_id).limit(1));return result.scalar_one_or_none()
 async def upsert_osm_places(session,attractions:list[dict],*,city:str,region:str)->list[Place]:
@@ -143,30 +170,35 @@ async def get_weather_endpoint(city:str):
 
 @app.post("/api/pois/query")
 async def query_pois(query:POIQuery):
-    if not query.city:raise HTTPException(status_code=400,detail="City required")
+    if not query.city and not query.region and not query.search:
+        raise HTTPException(status_code=400,detail="City, region, or search required")
     limit,offset=normalize_limit(query.limit),normalize_offset(query.offset);cats=expand_poi_tags(query.tags) if query.tags else None
+    search=query.search.strip() if query.search else None
+    shuffle=str(query.shuffle).strip() if query.shuffle else None
     async with AsyncSessionLocal() as session:
-        places=await get_places_from_db(session,region=query.region,city=query.city,category=cats,offset=offset,limit=limit)
-        if not places:
-            places=await get_places_from_db(session,city=query.city,category=cats,offset=offset,limit=limit)
-        if not places and offset==0:
+        places=await get_places_from_db(session,region=query.region,city=query.city,category=cats,search=search,shuffle=shuffle,offset=offset,limit=limit)
+        if not places and query.city and not search:
+            places=await get_places_from_db(session,city=query.city,category=cats,search=search,shuffle=shuffle,offset=offset,limit=limit)
+        if not places and offset==0 and query.city and not search:
             osm=await get_attractions_osm(query.city,limit=100)
             if osm:
-                await upsert_osm_places(session,osm,city=query.city,region=query.region);await session.commit()
-                places=await get_places_from_db(session,region=query.region,city=query.city,category=cats,offset=offset,limit=limit)
+                await upsert_osm_places(session,osm,city=query.city,region=query.region or "");await session.commit()
+                places=await get_places_from_db(session,region=query.region,city=query.city,category=cats,search=search,shuffle=shuffle,offset=offset,limit=limit)
+                if not places:
+                    places=await get_places_from_db(session,city=query.city,category=cats,search=search,shuffle=shuffle,offset=offset,limit=limit)
         # Photo lookup is intentionally lazy. The page must render immediately;
         # /api/pois/{id} hydrates a missing photo when the frontend requests it.
         photos=await get_photos_map(session,[p.place_id for p in places])
         pois=[place_to_dict(p,photos.get(p.place_id)) for p in places]
-        await session.commit();return {"count":len(pois),"region":query.region,"city":query.city,"tags":query.tags,"offset":offset,"limit":limit,"pois":pois}
+        await session.commit();return {"count":len(pois),"region":query.region,"city":query.city,"tags":query.tags,"search":search,"shuffle":shuffle,"offset":offset,"limit":limit,"pois":pois}
 
 @app.get("/api/pois")
-async def get_all_pois(region:Optional[str]=None,city:Optional[str]=None,category:Optional[str]=None,offset:int=0,limit:int=30):
+async def get_all_pois(region:Optional[str]=None,city:Optional[str]=None,category:Optional[str]=None,search:Optional[str]=None,shuffle:Optional[str]=None,offset:int=0,limit:int=30):
     limit,offset=normalize_limit(limit),normalize_offset(offset)
     async with AsyncSessionLocal() as session:
-        places=await get_places_from_db(session,region=region,city=city,category=normalize_category(category) if category else None,offset=offset,limit=limit)
+        places=await get_places_from_db(session,region=region,city=city,category=normalize_category(category) if category else None,search=search,shuffle=shuffle,offset=offset,limit=limit)
         for place in places:await ensure_place_photo(session,place)
-        photos=await get_photos_map(session,[p.place_id for p in places]);await session.commit();return {"pois":[place_to_dict(p,photos.get(p.place_id)) for p in places],"count":len(places),"offset":offset,"limit":limit}
+        photos=await get_photos_map(session,[p.place_id for p in places]);await session.commit();return {"pois":[place_to_dict(p,photos.get(p.place_id)) for p in places],"count":len(places),"offset":offset,"limit":limit,"search":search,"shuffle":shuffle}
 @app.get("/api/pois/{place_id}",response_model=POIDetail)
 async def get_poi_detail(place_id:str):
     async with AsyncSessionLocal() as session:
@@ -182,7 +214,7 @@ async def get_poi_photos(place_id:str):
 @app.post("/api/route/build",response_model=RouteResponse)
 async def build_route(req:RouteRequest):
     ids=list(dict.fromkeys(x for x in req.poi_ids if x))
-    if len(ids)<2:raise HTTPException(status_code=400,detail=get_text("min_points_error",count=len(ids)))
+    if len(ids)<2:raise HTTPException(status_code=400,detail="Need at least 2 unique points")
     async with AsyncSessionLocal() as session:result=await session.execute(select(Place).where(Place.place_id.in_(ids)));places=list(result.scalars().all())
     by_id={p.place_id:p for p in places};points=[{"id":i,"lat":float(by_id[i].lat),"lon":float(by_id[i].lon),"name":by_id[i].name} for i in ids if i in by_id and by_id[i].lat is not None and by_id[i].lon is not None]
     if len(points)<2:raise HTTPException(status_code=400,detail="Need at least 2 points with coordinates")
@@ -208,23 +240,49 @@ async def toggle_favorite(data:FavoriteToggle,request:Request):
         if place is None:raise HTTPException(status_code=404,detail="Place not found")
         session.add(Favorite(user_id=uid,place_id=place.place_id,place_name=place.name,address=place.address or "",lat=float(place.lat),lon=float(place.lon)));await session.commit();return {"poi_id":data.poi_id,"user_id":uid,"favorited":True}
 @app.get("/api/favorites/me")
-async def get_favorites(request:Request):
+async def get_favorites(request:Request,page:Optional[int]=None,page_size:int=8,limit:Optional[int]=None,offset:Optional[int]=None):
     uid=request.state.telegram_user_id
     async with AsyncSessionLocal() as session:
-        r=await session.execute(select(Favorite).where(Favorite.user_id==uid).order_by(Favorite.created_at.desc()));favorites=r.scalars().all();return {"user_id":uid,"favorites":[{"id":f.id,"place_id":f.place_id,"place_name":f.place_name,"address":f.address,"lat":f.lat,"lon":f.lon} for f in favorites]}
+        if page is not None or limit is not None:
+            l=limit if limit is not None else page_size
+            o=offset if offset is not None else (max(page,0)*l if page is not None else 0)
+            count_res=await session.execute(select(func.count(Favorite.id)).where(Favorite.user_id==uid))
+            total=count_res.scalar_one_or_none() or 0
+            stmt=select(Favorite).where(Favorite.user_id==uid).order_by(Favorite.created_at.desc()).offset(o).limit(l)
+            r=await session.execute(stmt);favorites=r.scalars().all()
+            pages=(total+l-1)//l if l>0 else 1
+            has_next=(o+len(favorites))<total
+            return {"user_id":uid,"favorites":[{"id":f.id,"place_id":f.place_id,"place_name":f.place_name,"address":f.address,"lat":f.lat,"lon":f.lon} for f in favorites],"total":total,"page":page if page is not None else (o//l if l>0 else 0),"page_size":l,"pages":pages,"has_next":has_next}
+        else:
+            r=await session.execute(select(Favorite).where(Favorite.user_id==uid).order_by(Favorite.created_at.desc()));favorites=r.scalars().all()
+            return {"user_id":uid,"favorites":[{"id":f.id,"place_id":f.place_id,"place_name":f.place_name,"address":f.address,"lat":f.lat,"lon":f.lon} for f in favorites],"total":len(favorites),"page":0,"page_size":len(favorites),"pages":1,"has_next":False}
 @app.get("/health")
 async def health():return {"status":"ok","timestamp":datetime.utcnow().isoformat()}
 @app.post("/api/auth/telegram")
 async def auth_telegram(request:Request):
+    mock_auth = os.getenv("MOCK_AUTH") == "1" or os.getenv("JARVIS_MOCK_AUTH") == "1"
     authorization=request.headers.get("Authorization","")
-    if not authorization.startswith("tma "):raise HTTPException(status_code=401,detail="Telegram authentication required")
-    try:user_data=validate_init_data(authorization[4:].strip(),TOKEN,max_age=86400)
-    except TelegramAuthError as exc:raise HTTPException(status_code=401,detail=str(exc)) from exc
+    if mock_auth and (not authorization.startswith("tma ") or authorization == "tma mock_auth"):
+        user_data = {"id": 999999999, "username": "mock_admin", "first_name": "Admin"}
+    else:
+        if not authorization.startswith("tma "):
+            if mock_auth:
+                user_data = {"id": 999999999, "username": "mock_admin", "first_name": "Admin"}
+            else:
+                raise HTTPException(status_code=401,detail="Telegram authentication required")
+        else:
+            try:
+                user_data=validate_init_data(authorization[4:].strip(),TOKEN,max_age=86400)
+            except TelegramAuthError as exc:
+                if mock_auth:
+                    user_data = {"id": 999999999, "username": "mock_admin", "first_name": "Admin"}
+                else:
+                    raise HTTPException(status_code=401,detail=str(exc)) from exc
     uid=int(user_data["id"]);username=user_data.get("username","")
     async with AsyncSessionLocal() as session:
         r=await session.execute(select(User).where(User.user_id==uid));user=r.scalar_one_or_none();new=user is None
         if new:user=User(user_id=uid,username=username);session.add(user)
         else:user.username=username
-        await session.commit();return {"user_id":uid,"username":username,"is_new":new,"tokens":user.tokens}
+        await session.commit();return {"user_id":uid,"username":username,"is_new":new,"tokens":getattr(user, "tokens", 0)}
 if __name__=="__main__":
     import uvicorn;uvicorn.run(app,host="0.0.0.0",port=8000)

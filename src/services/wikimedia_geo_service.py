@@ -1,6 +1,6 @@
 """URL-only Wikimedia Commons photo lookup.
 
-The service never downloads image bytes. It asks Commons for files geotagged
+The service never downloads image bytes. It queries Commons for files geotagged
 near an OSM point and returns Wikimedia's own image URLs to the frontend.
 """
 
@@ -12,10 +12,11 @@ from typing import Any
 import aiohttp
 
 API_URL = "https://commons.wikimedia.org/w/api.php"
-USER_AGENT = "JARVIS-GEO-APP/2.0 (Wikimedia Commons geosearch)"
-MIN_DISTANCE_M = 5.0
-SEARCH_RADIUS_M = 30
-MAX_RESULTS = 20
+USER_AGENT = "JARVIS-GEO-APP/2.0 (Wikimedia Commons geosearch; contact: kirwjb@gmail.com)"
+MIN_DISTANCE_M = 0.0
+DEFAULT_SEARCH_RADIUS_M = 300
+MAX_SEARCH_RADIUS_M = 600
+MAX_RESULTS = 25
 
 
 def _distance_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -36,13 +37,28 @@ def _image_info(page: dict[str, Any], distance_m: float) -> dict[str, Any] | Non
     if not str(info.get("mime") or "").startswith("image/"):
         return None
 
+    # Filter out SVG icons, maps, and coat of arms if identifiable
+    title = str(page.get("title", "")).lower()
+    if any(ext in title for ext in (".svg", "coat_of_arms", "flag_of", "map_", "locator")):
+        return None
+
     metadata = info.get("extmetadata") or {}
     artist = metadata.get("Artist") or {}
     license_name = metadata.get("LicenseShortName") or {}
+
+    raw_url = str(info["url"])
+    raw_thumb = str(info.get("thumburl") or raw_url)
+
+    # Force HTTPS to prevent mixed content errors over ngrok
+    if raw_url.startswith("http://"):
+        raw_url = "https://" + raw_url[7:]
+    if raw_thumb.startswith("http://"):
+        raw_thumb = "https://" + raw_thumb[7:]
+
     return {
         "source": "wikimedia",
-        "original_url": info["url"],
-        "thumbnail_url": info.get("thumburl") or info["url"],
+        "original_url": raw_url,
+        "thumbnail_url": raw_thumb,
         "author": artist.get("value"),
         "license": license_name.get("value"),
         "title": page.get("title", ""),
@@ -54,15 +70,10 @@ async def find_photo_by_coordinates(
     lat: float,
     lon: float,
     *,
-    radius_m: int = SEARCH_RADIUS_M,
+    radius_m: int = DEFAULT_SEARCH_RADIUS_M,
 ) -> dict[str, Any] | None:
-    """Find the nearest usable Commons image geotagged 5–30 m from a POI.
-
-    The provider radius is only candidate discovery. The final distance is
-    calculated locally from both coordinate pairs, avoiding reliance on a
-    provider-specific ``dist`` field.
-    """
-    radius = min(max(int(radius_m), int(MIN_DISTANCE_M)), SEARCH_RADIUS_M)
+    """Find the nearest usable Commons image geotagged within radius of POI."""
+    radius = min(max(int(radius_m), 25), MAX_SEARCH_RADIUS_M)
     params = {
         "action": "query",
         "format": "json",
@@ -74,16 +85,24 @@ async def find_photo_by_coordinates(
         "ggslimit": MAX_RESULTS,
         "prop": "imageinfo|coordinates",
         "iiprop": "url|mime|extmetadata",
-        "iiurlwidth": 1200,
+        "iiurlwidth": 800,
         "colimit": 1,
     }
     timeout = aiohttp.ClientTimeout(total=8)
-    headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
+    headers = {
+        "User-Agent": USER_AGENT,
+        "Accept": "application/json",
+        "ngrok-skip-browser-warning": "true",
+    }
 
-    async with aiohttp.ClientSession(timeout=timeout, headers=headers) as session:
-        async with session.get(API_URL, params=params) as response:
-            response.raise_for_status()
-            data = await response.json()
+    try:
+        async with aiohttp.ClientSession(timeout=timeout, headers=headers) as session:
+            async with session.get(API_URL, params=params) as response:
+                if response.status != 200:
+                    return None
+                data = await response.json()
+    except Exception:
+        return None
 
     candidates: list[dict[str, Any]] = []
     for page in (data.get("query", {}).get("pages", {}) or {}).values():
@@ -97,7 +116,7 @@ async def find_photo_by_coordinates(
             continue
 
         distance = _distance_m(float(lat), float(lon), photo_lat, photo_lon)
-        if not MIN_DISTANCE_M <= distance <= SEARCH_RADIUS_M:
+        if distance > radius:
             continue
         image = _image_info(page, distance)
         if image:

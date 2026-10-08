@@ -36,6 +36,6 @@ export function persist() {
 }
 
 export function telegramUserId() {
-  const id = tg?.initDataUnsafe?.user?.id;
+  const id = tg?.initDataUnsafe?.user?.id || (window.JARVIS_MOCK_USER?.id || (window.JARVIS_MOCK_AUTH ? 999999999 : null));
   return Number.isInteger(id) ? id : null;
 }

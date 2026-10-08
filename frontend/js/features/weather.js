@@ -1,15 +1,36 @@
-import { state } from '../core/state.js';
-import { request } from '../core/api.js';
-import { $, esc, toast } from '../ui/helpers.js';
-import { t } from '../ui/language.js';
+import { state } from '../core/state.js?v=1791475344';
+import { request } from '../core/api.js?v=1791475344';
+import { $, esc, toast } from '../ui/helpers.js?v=1791475344';
+import { t } from '../ui/language.js?v=1791475344';
 
 function weatherIcon(description='') {
-  const text=description.toLowerCase();
-  if(text.includes('гроза')||text.includes('гром'))return '⛈️';
-  if(text.includes('снег')||text.includes('snow'))return '🌨️';
-  if(text.includes('дожд')||text.includes('rain'))return '🌧️';
-  if(text.includes('облач')||text.includes('cloud'))return '☁️';
-  if(text.includes('туман')||text.includes('fog'))return '🌫️';
+  const text = description.toLowerCase();
+  
+  // Calculate hour in Minsk (UTC+3) regardless of local browser timezone
+  const d = new Date();
+  const hour = (d.getUTCHours() + 3) % 24;
+  
+  const isNight = hour >= 19 || hour < 6;
+  const isTwilight = hour >= 18 && hour <= 19 || hour >= 5 && hour <= 6;
+
+  if (text.includes('гроза') || text.includes('гром')) return '⛈️';
+  if (text.includes('снег') || text.includes('snow')) return '🌨️';
+  if (text.includes('дожд') || text.includes('rain') || text.includes('морос')) return '🌧️';
+  if (text.includes('туман') || text.includes('fog')) return '🌫️';
+  
+  if (text.includes('перемен') || text.includes('partly') || text.includes('местами') || text.includes('небольш')) {
+    return isNight ? '☁️' : '⛅';
+  }
+  if (text.includes('облач') || text.includes('пасмур') || text.includes('cloud')) {
+    return '☁️';
+  }
+  if (text.includes('ясно') || text.includes('clear')) {
+    return isNight ? '🌙' : '☀️';
+  }
+  
+  if (isNight) {
+    return isTwilight ? '🌗' : '🌙';
+  }
   return '☀️';
 }
 

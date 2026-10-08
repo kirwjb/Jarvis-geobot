@@ -1,9 +1,9 @@
-import { state, TAGS, persist } from '../core/state.js';
-import { request } from '../core/api.js';
-import { $, esc, toast, haptic } from '../ui/helpers.js';
-import { go } from '../core/router.js';
-import { loadPlaces } from './places.js';
-import { t } from '../ui/language.js';
+import { state, TAGS, persist } from '../core/state.js?v=1791475344';
+import { request } from '../core/api.js?v=1791475344';
+import { $, esc, toast, haptic } from '../ui/helpers.js?v=1791475344';
+import { go } from '../core/router.js?v=1791475344';
+import { loadPlaces } from './places.js?v=1791475344';
+import { t } from '../ui/language.js?v=1791475344';
 
 /** Render region choices from application state or a filtered subset. */
 export function renderRegions(list = state.regions) {

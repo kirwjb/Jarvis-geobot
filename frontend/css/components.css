@@ -1,9 +1,279 @@
-.empty,.loading{text-align:center;padding:40px;color:var(--muted)}
-.poi-placeholder{display:grid;place-items:center;width:100%;height:100%;min-height:180px;background:var(--panel-2);font-size:42px;color:var(--muted)}
-.poi-img{overflow:hidden;isolation:isolate}
-.poi-img img{display:block;width:100%;height:100%;min-width:0;min-height:0;max-width:100%;object-fit:cover;object-position:center;position:relative;z-index:0}
-.poi-img::after{z-index:1;pointer-events:none}
-.poi-body{position:relative;z-index:2}
-.jarvis-loading{text-align:center;padding:28px}.jarvis-spinner{width:28px;height:28px;margin:0 auto 10px;border:3px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:jarvis-spin .8s linear infinite}@keyframes jarvis-spin{to{transform:rotate(360deg)}}.jarvis-loading-title{color:var(--muted);font-size:13px}
-.poi-page-btn{min-width:44px;min-height:40px;border:1px solid var(--border);border-radius:12px;background:var(--panel);color:var(--text);cursor:pointer}
-.jarvis-modal{position:fixed;inset:0;z-index:20000;background:rgba(0,0,0,.68);display:flex;align-items:flex-end;justify-content:center;padding:12px}.jarvis-modal-card{width:min(760px,100%);max-height:88vh;overflow:auto;background:var(--bg);border-radius:24px;padding:18px}.jarvis-close{float:right;border:0;background:none;color:inherit;font-size:30px;cursor:pointer}.jarvis-detail-image{display:block;width:100%;height:min(360px,48vh);object-fit:cover;border-radius:18px}.jarvis-route-text{white-space:pre-line;line-height:1.55}.jarvis-route-url{padding:12px;margin:12px 0;border-radius:12px;background:var(--panel-2);word-break:break-all;font-size:12px;user-select:text}.jarvis-modal-actions{display:grid;gap:8px;margin-top:16px}.favorite-item{padding:16px;margin-bottom:12px;border:1px solid var(--border);border-radius:18px;background:var(--panel)}.favorite-item h3{margin-bottom:7px}.favorite-item p{color:var(--muted)}
+.empty, .loading {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* Photo and skeleton container */
+.poi-placeholder {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  min-height: 190px;
+  background: var(--panel-2);
+  font-size: 40px;
+  color: var(--muted);
+  user-select: none;
+}
+
+.poi-img {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  height: 190px;
+  background: linear-gradient(90deg, var(--panel-2) 0%, rgba(255,255,255,0.06) 50%, var(--panel-2) 100%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 2s infinite ease-in-out;
+  border-radius: 24px 24px 0 0;
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.poi-img img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  position: relative;
+  z-index: 0;
+  opacity: 1;
+  transition: opacity 0.35s ease, transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.poi-img img.img-loaded {
+  opacity: 1;
+}
+
+.poi-card {
+  transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.4, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.poi-card:hover .poi-img img {
+  transform: scale(1.025);
+}
+
+.poi-card:active {
+  transform: scale(0.98);
+}
+
+.poi-body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  position: relative;
+  z-index: 2;
+  padding: 14px 16px 16px;
+}
+
+.jarvis-loading {
+  text-align: center;
+  padding: 36px 16px;
+}
+
+.jarvis-spinner {
+  width: 32px;
+  height: 32px;
+  margin: 0 auto 12px;
+  border: 3px solid var(--border);
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: jarvis-spin 0.75s linear infinite;
+}
+
+@keyframes jarvis-spin {
+  to { transform: rotate(360deg); }
+}
+
+.jarvis-loading-title {
+  color: var(--text-soft);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.poi-tools {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.poi-tools .poi-search-input {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.poi-shuffle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 46px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 17px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform 0.14s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.poi-shuffle-btn:active {
+  transform: scale(0.96);
+}
+
+.poi-shuffle-btn:hover {
+  border-color: rgba(59, 130, 246, 0.45);
+}
+
+.poi-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 18px;
+  padding: 10px 0 24px;
+}
+
+.poi-page-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-soft);
+}
+
+.poi-page-btn {
+  min-width: 44px;
+  min-height: 42px;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  transition: transform 0.14s ease, background 0.15s ease;
+}
+
+.poi-page-btn:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+/* Modal with frosted backdrop */
+.jarvis-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 20000;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 12px;
+  animation: modal-fade-in 0.22s ease-out;
+}
+
+@keyframes modal-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.jarvis-modal-card {
+  width: min(720px, 100%);
+  max-height: 88vh;
+  overflow-y: auto;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 30px;
+  padding: 20px;
+  box-shadow: 0 20px 50px var(--shadow), 0 2px 4px rgba(0,0,0,0.06);
+  animation: modal-slide-up 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modal-slide-up {
+  from { transform: translateY(24px) scale(0.98); }
+  to { transform: translateY(0) scale(1); }
+}
+
+.jarvis-close {
+  float: right;
+  border: 0;
+  background: none;
+  color: var(--text-soft);
+  font-size: 26px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 50%;
+  transition: color 0.15s ease;
+}
+
+.jarvis-close:hover {
+  color: var(--text);
+}
+
+.jarvis-detail-image {
+  display: block;
+  width: 100%;
+  height: min(340px, 44vh);
+  object-fit: cover;
+  border-radius: 24px;
+  margin-bottom: 16px;
+  background: var(--panel-2);
+}
+
+.jarvis-route-text {
+  white-space: pre-line;
+  line-height: 1.55;
+  color: var(--text-soft);
+}
+
+.jarvis-route-url {
+  padding: 12px 14px;
+  margin: 12px 0;
+  border-radius: 24px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  word-break: break-all;
+  font-size: 12px;
+  user-select: text;
+  color: var(--text);
+}
+
+.jarvis-modal-actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.favorite-item {
+  padding: 16px 18px;
+  margin-bottom: 12px;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background: var(--panel);
+  box-shadow: 0 4px 14px var(--shadow), 0 2px 4px rgba(0,0,0,0.06);
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.favorite-item:active {
+  transform: scale(0.985);
+}
+
+.favorite-item h3 {
+  margin-bottom: 6px;
+  font-size: 16px;
+}
+
+.favorite-item p {
+  color: var(--text-soft);
+  font-size: 13px;
+}

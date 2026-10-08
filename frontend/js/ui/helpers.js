@@ -12,6 +12,33 @@ export function toast(message) {
   toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
 }
 
-export function haptic(type='light') {
-  try { window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.(type); } catch (_) {}
+const tgHaptic = () => window.Telegram?.WebApp?.HapticFeedback;
+
+export function hapticImpact(style = 'light') {
+  try {
+    tgHaptic()?.impactOccurred?.(style);
+  } catch (_) {}
+}
+
+export function hapticNotification(type = 'success') {
+  try {
+    tgHaptic()?.notificationOccurred?.(type);
+  } catch (_) {}
+}
+
+export function hapticSelection() {
+  try {
+    tgHaptic()?.selectionChanged?.();
+  } catch (_) {}
+}
+
+/** Unified haptic dispatcher with Telegram WebApp support and safe fallbacks. */
+export function haptic(type = 'light') {
+  if (type === 'selection') {
+    hapticSelection();
+  } else if (['success', 'warning', 'error'].includes(type)) {
+    hapticNotification(type);
+  } else {
+    hapticImpact(type);
+  }
 }

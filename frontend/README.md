@@ -1,43 +1,48 @@
-# Frontend architecture
+# JARVIS Geo-App Frontend
 
-The Mini App frontend is intentionally split by responsibility.
+The frontend is a lightweight, dependency-free vanilla JavaScript Telegram Mini App structured by modular domains.
+
+## Directory Structure
 
 ```text
 frontend/
-├── index.html              # semantic UI shell; no application logic
-├── style.css               # legacy visual base styles kept stable
+├── index.html                 # Semantic UI shell; screens and containers
+├── favicon.svg                # Favicon
+├── logo.svg                   # Logo
+├── style.css                  # Forwarding alias (@import css/style.css)
 ├── css/
-│   ├── interactions.css    # hit-testing / cursor contract
-│   └── components.css      # reusable component states
-├── js/
-│   ├── main.js             # single application entrypoint + event boundary
-│   ├── core/
-│   │   ├── state.js        # application state + persistence
-│   │   ├── api.js          # authenticated API client
-│   │   └── router.js       # screen navigation + Telegram back button
-│   ├── features/
-│   │   ├── travel.js       # regions, cities, interests
-│   │   ├── places.js       # POI feed, pagination, favorites, details
-│   │   ├── weather.js       # weather screen/data
-│   │   ├── route.js         # route building/editing
-│   │   └── navigation-extra.js # favorites/groups navigation
-│   └── ui/
-│       ├── helpers.js       # DOM helpers, toast, haptics
-│       ├── theme.js         # local theme state
-│       └── language.js      # language selector state
-├── logo.svg
-└── favicon.svg
+│   ├── style.css              # Color tokens, dark/light themes, typography, layout
+│   ├── components.css         # UI cards, buttons, modals, toasts, pagination, feed tools
+│   ├── interactions.css       # Active states, touch feedback
+│   └── weather.css            # Weather shell & metric blocks
+└── js/
+    ├── main.js                # App bootstrapping & composition root
+    ├── app/
+    │   └── events.js          # Centralized event delegation layer
+    ├── core/
+    │   ├── api.js             # HTTP request helper with error handling
+    │   ├── router.js          # Screen navigation & Telegram WebApp BackButton
+    │   └── state.js           # Shared state & localStorage persistence
+    ├── ui/
+    │   ├── helpers.js         # DOM utilities, toast, haptics, HTML escaping
+    │   ├── language.js        # RU/BY i18n dictionaries & language toggling
+    │   └── theme.js           # Theme controller & Telegram WebApp style sync
+    └── features/
+        ├── travel.js          # Region, city, and tag selection
+        ├── places.js          # POI feed controller, free search & random shuffling
+        ├── places/
+        │   ├── pagination.js  # POI feed page loading & cache
+        │   ├── photos.js      # Image tag rendering & Wikimedia proxy
+        │   ├── state.js       # Search query, shuffle seed & pagination state
+        │   └── view.js        # POI card templates & feed rendering
+        ├── favorites.js       # Favorites loading, toggling, and paginated screen
+        ├── route.js           # Route building, point management & FAB state
+        └── weather.js         # City weather view & cache
 ```
 
-## Rules
+## Key Rules
 
-1. `index.html` contains markup only. No inline `onclick`, `oninput` or navigation logic.
-2. `main.js` is the only application entrypoint and owns the document-level event boundary.
-3. Features do not install global click handlers.
-4. API calls go through `core/api.js`.
-5. Persistent state lives in `core/state.js`.
-6. Screen changes go through `core/router.js`.
-7. Interactive hit-testing is defined once in `css/interactions.css`.
-8. Temporary override files are not used. A feature must have one owner.
-
-The previous `app.js`, `ux_fixes.js`, `enhancements.js`, `navigation.js`, `startup_fix.js`, `feed_pagination.js`, `photo_loader.js` and global `i18n.js` layers were removed because they were competing for ownership of the same DOM and functions.
+1. **Markup Only in HTML**: `index.html` contains no inline event handlers (`onclick`, etc.).
+2. **Centralized Event Delegation**: All interactive elements use `data-action="..."` and are handled via `js/app/events.js`.
+3. **Domain Ownership**: Domain logic is contained in its respective feature file (`favorites.js`, `route.js`, `travel.js`, `places.js`, `weather.js`).
+4. **Resilient Offline/TMA Support**: Runs both inside Telegram Mini App and standalone browsers.

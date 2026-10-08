@@ -1,4 +1,14 @@
 {
+  "name": "jarvis-geobot",
+  "version": "2.2.0",
+  "scripts": {
+    "start": "./jarvis -r",
+    "test": "./jarvis test",
+    "jarvis": "./jarvis",
+    "jarvis:run": "./jarvis -r",
+    "jarvis:status": "./jarvis status",
+    "jarvis:admin": "./jarvis -a"
+  },
   "dependencies": {
     "@tma.js/sdk": "^3.3.0",
     "@tma.js/sdk-react": "^3.0.23",

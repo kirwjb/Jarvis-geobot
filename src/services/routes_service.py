@@ -26,7 +26,11 @@ async def get_distance_osrm(
     }
 
     try:
-        async with aiohttp.ClientSession() as session:
+        try:
+            session_ctx = aiohttp.ClientSession(headers={"ngrok-skip-browser-warning": "true"})
+        except TypeError:
+            session_ctx = aiohttp.ClientSession()
+        async with session_ctx as session:
 
             async with session.get(
                 url,

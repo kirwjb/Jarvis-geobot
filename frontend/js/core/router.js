@@ -1,5 +1,5 @@
-import { state, persist, tg } from './state.js';
-import { $, $$ } from '../ui/helpers.js';
+import { state, persist, tg } from './state.js?v=1791475344';
+import { $, $$ } from '../ui/helpers.js?v=1791475344';
 
 let backButtonBound = false;
 
@@ -22,7 +22,7 @@ export function initTelegramBackButton() {
   if (backButtonBound || !tg?.BackButton?.onClick) return;
   backButtonBound = true;
   tg.BackButton.onClick(() => {
-    const map = { regions:'splash', cities:'regions', tags:'cities', cards:'tags', favorites:'splash', groups:'splash', group:'groups' };
+    const map = { regions:'splash', cities:'regions', tags:'cities', cards:'tags', favorites:'splash' };
     if (state.screen === 'weather') return go(state.mode === 'weather' ? 'cities' : 'tags');
     if (state.screen === 'route') return go(state.pois.length ? 'cards' : 'tags');
     if (map[state.screen]) go(map[state.screen]);
