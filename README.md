@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <img src="frontend/logo_art.svg" alt="JARVIS ASCII Art" width="600">
+  <img src="frontend/logo_art.svg" alt="JARVIS ASCII Art" width="550">
 </p>
 
 <p align="center">
