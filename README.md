@@ -3,11 +3,11 @@
 > A Telegram travel assistant for discovering places, planning routes, checking weather, and exploring cities.
 
 <p align="center">
-  <img src="frontend/logo.svg" alt="JARVIS GeoBot" width="340">
+  <img src="frontend/logo.svg" alt="JARVIS GeoBot" width="350">
 </p>
 
 <p align="center">
-  <img src="frontend/logo_art.svg" alt="JARVIS ASCII Art" width="500">
+  <img src="frontend/logo_art.svg" alt="JARVIS ASCII Art" width="700">
 </p>
 
 <p align="center">
