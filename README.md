@@ -21,7 +21,7 @@
 </p>
 
 <p align="center">
-  <code>v2.0.0</code> · <strong>Stable Release</strong>
+  <code>v2.0.1</code> · <strong>Stable Release</strong>
 </p>
 
 ---
@@ -602,13 +602,13 @@ When adding a new feature, developers should preferably:
 
 ---
 
-## 🧪 Beta Status
+## 🚀 Release Status
 
-JARVIS GeoBot is currently in **Beta**.
+JARVIS GeoBot is now in a **Stable** release.
 
 The project is actively developed and tested. Interfaces, APIs, and individual features may continue to change between releases.
 
-The current beta focuses on:
+Recent updates and focus areas include:
 
 - Improving Mini App reliability
 - Improving places discovery
@@ -620,7 +620,7 @@ The current beta focuses on:
 
 ### Current Release
 
-**`v1.4126.060926 — Beta`**
+**`v2.0.1 — Stable`**
 
 ---
 
