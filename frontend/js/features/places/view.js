@@ -1,8 +1,8 @@
-import { state } from '../../core/state.js?v=1791475344';
-import { $, esc } from '../../ui/helpers.js?v=1791475344';
-import { t } from '../../ui/language.js?v=1791475344';
-import { placesState } from './state.js?v=1791475344';
-import { renderImageTag } from './photos.js?v=1791475344';
+import { state } from '../../core/state.js?v=20261009002';
+import { $, esc } from '../../ui/helpers.js?v=20261009002';
+import { t } from '../../ui/language.js?v=20261009002';
+import { placesState } from './state.js?v=20261009002';
+import { renderImageTag } from './photos.js?v=20261009002';
 
 /** Build one POI card with resilient photo rendering and fallbacks. */
 export function poiCardMarkup(place) {
@@ -23,5 +23,5 @@ export function renderPlaces() {
   if (pagination) pagination.innerHTML = (state.pois.length || placesState.hasNext) ? `<button class="poi-page-btn" type="button" data-action="page-prev" data-page="${placesState.page - 1}" ${placesState.page === 0 || placesState.loading ? 'disabled' : ''}>←</button><span class="poi-page-label">${esc(t('page'))} ${placesState.page + 1}</span><button class="poi-page-btn" type="button" data-action="page-next" data-page="${placesState.page + 1}" ${!placesState.hasNext || placesState.loading ? 'disabled' : ''}>→</button>` : '';
 }
 
-import { updateRouteFab } from '../route.js?v=1791475344';
+import { updateRouteFab } from '../route.js?v=20261009002';
 export { updateRouteFab };

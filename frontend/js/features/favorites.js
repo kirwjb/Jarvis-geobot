@@ -1,8 +1,8 @@
-import { state, persist, telegramUserId } from '../core/state.js?v=1791475344';
-import { request } from '../core/api.js?v=1791475344';
-import { $, esc, toast, haptic } from '../ui/helpers.js?v=1791475344';
-import { t } from '../ui/language.js?v=1791475344';
-import { poiCardMarkup } from './places/view.js?v=1791475344';
+import { state, persist, telegramUserId } from '../core/state.js?v=20261009002';
+import { request } from '../core/api.js?v=20261009002';
+import { $, esc, toast, haptic } from '../ui/helpers.js?v=20261009002';
+import { t } from '../ui/language.js?v=20261009002';
+import { poiCardMarkup } from './places/view.js?v=20261009002';
 
 export const favState = {
   page: 0,

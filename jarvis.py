@@ -18,6 +18,7 @@ import socket
 import subprocess
 import sys
 from pathlib import Path
+import time
 
 # Add project root to sys.path
 ROOT_DIR = Path(__file__).resolve().parent
@@ -51,8 +52,57 @@ BANNER_ART = [
     "  ╚════╝  ╚═╝  ╚═╝ ╚═╝  ╚═╝   ╚═══╝   ╚═╝ ╚══════╝",
 ]
 GRADIENT_256 = [51, 45, 39, 75, 111, 147, 183, 219, 213, 207]
+BANNER_WIDTH = 50
+TARGET_GRADIENT = [51, 45, 39, 75, 111, 147, 183, 219, 213, 207]
+def render_banner_frame(highlight_pos: int = -1) -> str:
+    """Рендерит баннер с возможностью наложения бегущего блика."""
+    lines = [""]
+    for raw in BANNER_ART:
+        buf = ["  "]
+        for i, ch in enumerate(raw):
+            if ch == " ":
+                buf.append(" ")
+                continue
+            
+            # Базовый цвет из идеального второго градиента
+            ci = int((i / BANNER_WIDTH) * len(TARGET_GRADIENT))
+            ci = min(len(TARGET_GRADIENT) - 1, ci)
+            color_code = TARGET_GRADIENT[ci]
+
+            # Если на символ попадает луч блика — делаем его ярко-белым / неоновым
+            if highlight_pos != -1 and abs(i - highlight_pos) <= 2:
+                buf.append(f"\033[38;5;255m\033[1m{ch}")  # Белый ослепляющий блик
+            elif highlight_pos != -1 and abs(i - highlight_pos) <= 4:
+                buf.append(f"\033[38;5;159m\033[1m{ch}")  # Рассеянный свет вокруг блика
+            else:
+                buf.append(f"\033[38;5;{color_code}m\033[1m{ch}")
+        buf.append("\033[0m")
+        lines.append("".join(buf))
+    return "\n".join(lines)
 
 
+def animate_banner():
+    """Пробегает волна света слева направо и оставляет статичный градиент #2."""
+    sys.stdout.write("\033[?25l")  # Спрятать курсор
+    sys.stdout.flush()
+    try:
+        # Пробегаем лучом слева направо по ширине надписи
+        for pos in range(0, BANNER_WIDTH + 6, 2):
+            frame = render_banner_frame(highlight_pos=pos)
+            if pos > 0:
+                sys.stdout.write(f"\033[{len(BANNER_ART) + 1}A\r")
+            sys.stdout.write(frame + "\n")
+            sys.stdout.flush()
+            time.sleep(0.025)
+
+        # Финальный кадр: чистый, идеальный градиент 2 без артефактов
+        sys.stdout.write(f"\033[{len(BANNER_ART) + 1}A\r")
+        sys.stdout.write(render_banner_frame(highlight_pos=-1) + "\n")
+        sys.stdout.flush()
+    finally:
+        sys.stdout.write("\033[?25h")  # Вернуть курсор
+        sys.stdout.flush()
+        
 def get_ascii_banner() -> str:
     """Generate color-gradient ASCII art banner."""
     lines = [""]
@@ -71,7 +121,7 @@ def get_ascii_banner() -> str:
 
 def print_welcome_and_help():
     """Print the welcoming colorful ASCII art and comprehensive CLI guide."""
-    banner = get_ascii_banner()
+    banner = animate_banner()
     py_ver = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
     in_venv = sys.prefix != sys.base_prefix
     env_badge = f"{C_GREEN}● venv active{R}" if in_venv else f"{C_YELLOW}○ global python{R}"

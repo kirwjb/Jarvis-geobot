@@ -1,13 +1,13 @@
-import { state } from '../core/state.js?v=1791475344';
-import { $, haptic } from '../ui/helpers.js?v=1791475344';
-import { toggleTheme } from '../ui/theme.js?v=1791475344';
-import { toggleLanguage } from '../ui/language.js?v=1791475344';
-import { go, initTelegramBackButton, setTab } from '../core/router.js?v=1791475344';
-import { loadRegions, pickRegion, pickCity, toggleTag, filterRegions, filterCities, renderTags, startPlaces } from '../features/travel.js?v=1791475344';
-import { loadWeather } from '../features/weather.js?v=1791475344';
-import { loadPlaces, openDetail, loadPage, filterPlacesSearch, shufflePlaces, renderPlaces } from '../features/places.js?v=1791475344';
-import { loadFavorites, toggleFavorite, loadFavoritesScreen, favState } from '../features/favorites.js?v=1791475344';
-import { toggleRoute, updateFab, renderRoute, removeRoute, buildRoute, copyRoute, openRoute } from '../features/route.js?v=1791475344';
+import { state } from '../core/state.js?v=20261009002';
+import { $, haptic } from '../ui/helpers.js?v=20261009002';
+import { toggleTheme } from '../ui/theme.js?v=20261009002';
+import { toggleLanguage } from '../ui/language.js?v=20261009002';
+import { go, initTelegramBackButton, setTab } from '../core/router.js?v=20261009002';
+import { loadRegions, pickRegion, pickCity, toggleTag, filterRegions, filterCities, renderTags, startPlaces } from '../features/travel.js?v=20261009002';
+import { loadWeather } from '../features/weather.js?v=20261009002';
+import { loadPlaces, openDetail, loadPage, filterPlacesSearch, shufflePlaces, renderPlaces } from '../features/places.js?v=20261009002';
+import { loadFavorites, toggleFavorite, loadFavoritesScreen, favState } from '../features/favorites.js?v=20261009002';
+import { toggleRoute, updateFab, renderRoute, removeRoute, buildRoute, copyRoute, openRoute } from '../features/route.js?v=20261009002';
 
 let appEventsBound = false;
 

@@ -10,8 +10,7 @@
   display: grid;
   place-items: center;
   width: 100%;
-  height: 100%;
-  min-height: 190px;
+  aspect-ratio: 16 / 9;
   background: var(--panel-2);
   font-size: 40px;
   color: var(--muted);
@@ -22,7 +21,7 @@
   position: relative;
   overflow: hidden;
   isolation: isolate;
-  height: 190px;
+  aspect-ratio: 16 / 9;
   background: linear-gradient(90deg, var(--panel-2) 0%, rgba(255,255,255,0.06) 50%, var(--panel-2) 100%);
   background-size: 200% 100%;
   animation: skeleton-shimmer 2s infinite ease-in-out;
@@ -191,11 +190,13 @@
   width: min(720px, 100%);
   max-height: 88vh;
   overflow-y: auto;
-  background: var(--bg);
+  background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 30px;
   padding: 20px;
-  box-shadow: 0 20px 50px var(--shadow), 0 2px 4px rgba(0,0,0,0.06);
+  box-shadow: 0 20px 60px var(--shadow), inset 0 1px 0 var(--border-soft);
+  backdrop-filter: blur(32px) saturate(150%);
+  -webkit-backdrop-filter: blur(32px) saturate(150%);
   animation: modal-slide-up 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -259,13 +260,20 @@
   margin-bottom: 12px;
   border: 1px solid var(--border);
   border-radius: 24px;
-  background: var(--panel);
+  background: var(--panel-solid);
   box-shadow: 0 4px 14px var(--shadow), 0 2px 4px rgba(0,0,0,0.06);
+  
+  /* Performance optimizations */
+  -webkit-overflow-scrolling: touch;
+  will-change: transform;
+  content-visibility: auto;
+  contain-intrinsic-size: 100% 90px;
+  
   transition: transform 0.15s ease, border-color 0.15s ease;
 }
 
 .favorite-item:active {
-  transform: scale(0.985);
+  transform: scale(0.97);
 }
 
 .favorite-item h3 {

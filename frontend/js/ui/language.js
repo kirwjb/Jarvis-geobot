@@ -1,4 +1,4 @@
-import { $ } from './helpers.js?v=1791475344';
+import { $ } from './helpers.js?v=20261009002';
 
 const DICT = {
   RU: {

@@ -1,5 +1,5 @@
-import { state, persist, tg } from './state.js?v=1791475344';
-import { $, $$ } from '../ui/helpers.js?v=1791475344';
+import { state, persist, tg } from './state.js?v=20261009002';
+import { $, $$ } from '../ui/helpers.js?v=20261009002';
 
 let backButtonBound = false;
 

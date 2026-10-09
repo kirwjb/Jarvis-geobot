@@ -1,44 +1,32 @@
-import { $, haptic } from './helpers.js?v=1791475344';
+import { $, haptic } from './helpers.js?v=20261009002';
 
 const tg = window.Telegram?.WebApp;
 
 /** Sync Telegram's native styling variables to the active theme. */
 export function syncTelegramStylingVariables(light) {
   const root = document.documentElement;
+  // We rely on style.css for custom variables now. 
+  // Only override tg-theme vars if needed for fallback
   if (light) {
-    root.style.setProperty('--tg-theme-bg-color', '#f7f8fa');
+    root.style.setProperty('--tg-theme-bg-color', '#f6f8fc');
     root.style.setProperty('--tg-theme-text-color', '#12141a');
     root.style.setProperty('--tg-theme-hint-color', '#6b7280');
     root.style.setProperty('--tg-theme-link-color', '#2563eb');
     root.style.setProperty('--tg-theme-button-color', '#2563eb');
     root.style.setProperty('--tg-theme-button-text-color', '#ffffff');
-    root.style.setProperty('--tg-theme-secondary-bg-color', '#ffffff');
-    root.style.setProperty('--tg-theme-header-bg-color', '#f7f8fa');
-    root.style.setProperty('--tg-theme-bottom-bar-bg-color', '#f7f8fa');
-    root.style.setProperty('--bg', '#f7f8fa');
-    root.style.setProperty('--text', '#12141a');
-    root.style.setProperty('--panel', '#ffffff');
-    root.style.setProperty('--panel-2', '#edf0f5');
-    root.style.setProperty('--input', '#ffffff');
-    root.style.setProperty('--border', 'rgba(18, 20, 26, 0.08)');
-    root.style.setProperty('--nav-bg', 'rgba(247, 248, 250, 0.94)');
+    root.style.setProperty('--tg-theme-secondary-bg-color', 'rgba(255,255,255,0.65)');
+    root.style.setProperty('--tg-theme-header-bg-color', '#f6f8fc');
+    root.style.setProperty('--tg-theme-bottom-bar-bg-color', '#f6f8fc');
   } else {
-    root.style.setProperty('--tg-theme-bg-color', '#0d0f14');
+    root.style.setProperty('--tg-theme-bg-color', '#0b0f17');
     root.style.setProperty('--tg-theme-text-color', '#f4f6fa');
     root.style.setProperty('--tg-theme-hint-color', '#9ca3af');
     root.style.setProperty('--tg-theme-link-color', '#3b82f6');
     root.style.setProperty('--tg-theme-button-color', '#3b82f6');
     root.style.setProperty('--tg-theme-button-text-color', '#ffffff');
-    root.style.setProperty('--tg-theme-secondary-bg-color', '#161820');
-    root.style.setProperty('--tg-theme-header-bg-color', '#0d0f14');
-    root.style.setProperty('--tg-theme-bottom-bar-bg-color', '#0d0f14');
-    root.style.setProperty('--bg', '#0d0f14');
-    root.style.setProperty('--text', '#f4f6fa');
-    root.style.setProperty('--panel', '#161820');
-    root.style.setProperty('--panel-2', '#1e212b');
-    root.style.setProperty('--input', '#161820');
-    root.style.setProperty('--border', 'rgba(255, 255, 255, 0.08)');
-    root.style.setProperty('--nav-bg', 'rgba(13, 15, 20, 0.92)');
+    root.style.setProperty('--tg-theme-secondary-bg-color', 'rgba(22, 27, 34, 0.7)');
+    root.style.setProperty('--tg-theme-header-bg-color', '#0b0f17');
+    root.style.setProperty('--tg-theme-bottom-bar-bg-color', '#0b0f17');
   }
 }
 

@@ -1,5 +1,6 @@
 #weather-box{margin-top:16px;padding:0;border:0;background:transparent;box-shadow:none}
-.weather-shell{position:relative;overflow:hidden;padding:22px;border:1px solid var(--border);border-radius:32px;background:linear-gradient(145deg,var(--panel),var(--panel-2));box-shadow:0 14px 38px var(--shadow), 0 4px 12px rgba(0,0,0,0.06)}
+.weather-shell{position:relative;overflow:hidden;padding:22px;border:1px solid var(--border);border-radius:32px;background:var(--panel);box-shadow:0 14px 38px var(--shadow), inset 0 1px 0 var(--border-soft);backdrop-filter:blur(32px) saturate(150%);-webkit-backdrop-filter:blur(32px) saturate(150%);transition:transform 0.1s cubic-bezier(0.2,0.8,0.2,1)}
+.weather-shell:active{transform:scale(0.97)}
 .weather-shell::before{content:"";position:absolute;right:-70px;top:-90px;width:190px;height:190px;border-radius:50%;background:var(--blue-soft);filter:blur(2px)}
 .weather-head{position:relative;display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
 .weather-place{min-width:0}

@@ -1,58 +1,136 @@
 import asyncio
 import hashlib
+import json
+import random
 
 import aiohttp
 
 from src.config import NOMINATIM_URLS, OVERPASS_URLS
+from src.database.session_manager import redis_client
 from src.utils.API_codes import get_api_error_message
 from src.utils.utils import error, log
 
 TOURISM_TYPES = "attraction|museum|viewpoint|gallery|theme_park"
 HISTORIC_TYPES = "monument|memorial|castle|ruins|church|cathedral|manor"
-NOMINATIM_URL = NOMINATIM_URLS[0] if NOMINATIM_URLS else "https://nominatim.openstreetmap.org/search"
-HEADERS = {"User-Agent": "JARVIS-Travel-Bot/1.0"}
+HEADERS = {"User-Agent": "JARVIS-GeoApp/2.4 (contact: dev@example.com) - OSM fallback pool"}
 TYPE_MAP = {"museum":"Музей","attraction":"Достопримечательность","gallery":"Галерея","viewpoint":"Смотровая площадка","monument":"Памятник","memorial":"Мемориал","castle":"Замок","ruins":"Руины","church":"Церковь","cathedral":"Собор","manor":"Усадьба","theme_park":"Парк аттракционов"}
 
-async def get_city_coords(city: str) -> tuple[float | None, float | None]:
-    params={"q":f"{city}, Belarus","format":"json","limit":1,"accept-language":"ru"}
-    try:
-        async with aiohttp.ClientSession(headers=HEADERS) as session:
-            async with session.get(NOMINATIM_URL,params=params,timeout=10) as response:
-                if response.status != 200:
-                    error(f"Nominatim {response.status}: {get_api_error_message(response.status)}"); return None,None
-                data=await response.json()
-                if not data: log(f"Nominatim: город не найден: {city}"); return None,None
-                return float(data[0]["lat"]),float(data[0]["lon"])
-    except Exception as exc:
-        error(f"Ошибка получения координат города {city}: {exc}"); return None,None
 
-async def get_attractions_osm(city: str, limit: int = 100) -> list[dict]:
-    lat,lon=await get_city_coords(city)
-    if lat is None or lon is None:return []
-    bbox=f"{lat-0.1},{lon-0.15},{lat+0.1},{lon+0.15}"
-    query=f'''[out:json][timeout:20];(node["tourism"~"{TOURISM_TYPES}"]({bbox});way["tourism"~"{TOURISM_TYPES}"]({bbox});node["historic"~"{HISTORIC_TYPES}"]({bbox});way["historic"~"{HISTORIC_TYPES}"]({bbox}););out tags center;'''
-    timeout=aiohttp.ClientTimeout(total=35, connect=10)
-    async with aiohttp.ClientSession(headers=HEADERS,timeout=timeout) as session:
-        for url in OVERPASS_URLS:
+async def _fetch_with_fallback(urls: list[str], params: dict = None, data: dict = None, method: str = "GET", timeout_sec: int = 20, cache_key: str = None, cache_ttl: int = 86400):
+    if cache_key:
+        try:
+            cached = await redis_client.get(cache_key)
+            if cached:
+                log(f"Redis cache hit for {cache_key}")
+                return json.loads(cached)
+        except Exception as e:
+            error(f"Redis get error for {cache_key}: {e}")
+
+    timeout = aiohttp.ClientTimeout(total=timeout_sec, connect=5)
+    
+    # Copy URLs to avoid modifying the original list
+    pool = list(urls)
+
+    async with aiohttp.ClientSession(headers=HEADERS, timeout=timeout) as session:
+        for url in pool:
             for attempt in range(3):
                 try:
-                    log(f"Overpass: {city} → {url} (attempt {attempt+1}/3)")
-                    async with session.post(url,data={"data":query}) as response:
-                        if response.status != 200:
-                            error(f"Overpass {response.status}: {get_api_error_message(response.status)}")
-                            if response.status in {400,429,500,502,503,504} and attempt<2:
-                                await asyncio.sleep(1.5*(2**attempt)); continue
-                            break
-                        data=await response.json(content_type=None)
-                        attractions=_parse_attractions(data.get("elements",[])); attractions.sort(key=lambda x:x["name"].lower())
-                        log(f"Получено {len(attractions)} достопримечательностей для {city}")
-                        return attractions[:limit]
+                    log(f"OSM fetch: {method} {url} (attempt {attempt+1}/3)")
+                    if method.upper() == "GET":
+                        request_ctx = session.get(url, params=params)
+                    else:
+                        request_ctx = session.post(url, data=data)
+                        
+                    async with request_ctx as response:
+                        if response.status == 200:
+                            resp_data = await response.json(content_type=None)
+                            if cache_key:
+                                try:
+                                    await redis_client.setex(cache_key, cache_ttl, json.dumps(resp_data, ensure_ascii=False))
+                                except Exception as e:
+                                    error(f"Redis set error for {cache_key}: {e}")
+                            return resp_data
+                        else:
+                            error(f"OSM error {response.status} from {url}: {get_api_error_message(response.status)}")
+                            if response.status in {429, 500, 502, 503, 504} and attempt < 2:
+                                await asyncio.sleep(1.5 * (2 ** attempt))
+                                continue
+                            break # Try next mirror if 4xx or out of retries
                 except (aiohttp.ClientError, asyncio.TimeoutError, ValueError) as exc:
-                    error(f"Ошибка Overpass {url} attempt {attempt+1}/3: {exc}")
-                    if attempt<2: await asyncio.sleep(1.5*(2**attempt))
+                    error(f"OSM network/timeout error on {url} (attempt {attempt+1}/3): {exc}")
+                    if attempt < 2:
+                        await asyncio.sleep(1.5 * (2 ** attempt))
+                    else:
+                        break # Try next mirror
                 except Exception as exc:
-                    error(f"Ошибка Overpass {url}: {exc}"); break
-    error(f"Все зеркала Overpass недоступны для {city}"); return []
+                    error(f"OSM unexpected error on {url}: {exc}")
+                    break
+    
+    error(f"All OSM mirrors exhausted for {method}")
+    return None
+
+
+async def get_city_coords(city: str) -> tuple[float | None, float | None]:
+    cache_key = f"osm:coords:{city}"
+    params = {"q": f"{city}, Belarus", "format": "json", "limit": 1, "accept-language": "ru"}
+    
+    data = await _fetch_with_fallback(
+        urls=NOMINATIM_URLS,
+        params=params,
+        method="GET",
+        timeout_sec=15,
+        cache_key=cache_key,
+        cache_ttl=86400 * 7 # Cache coordinates for a week
+    )
+    
+    if data and isinstance(data, list) and len(data) > 0:
+        return float(data[0]["lat"]), float(data[0]["lon"])
+    
+    log(f"Nominatim: город не найден или ошибка: {city}")
+    return None, None
+
+
+async def get_attractions_osm(city: str, limit: int = 100) -> list[dict]:
+    lat, lon = await get_city_coords(city)
+    if lat is None or lon is None:
+        return []
+    
+    cache_key = f"osm:attractions:{city}"
+    try:
+        cached = await redis_client.get(cache_key)
+        if cached:
+            log(f"Redis cache hit for {cache_key}")
+            attractions = json.loads(cached)
+            return attractions[:limit]
+    except Exception as e:
+        error(f"Redis get error for {cache_key}: {e}")
+        
+    bbox = f"{lat-0.1},{lon-0.15},{lat+0.1},{lon+0.15}"
+    query = f'''[out:json][timeout:25];(node["tourism"~"{TOURISM_TYPES}"]({bbox});way["tourism"~"{TOURISM_TYPES}"]({bbox});node["historic"~"{HISTORIC_TYPES}"]({bbox});way["historic"~"{HISTORIC_TYPES}"]({bbox}););out tags center;'''
+    
+    data = await _fetch_with_fallback(
+        urls=OVERPASS_URLS,
+        data={"data": query},
+        method="POST",
+        timeout_sec=35,
+        cache_key=None  # We cache the processed result manually instead of the raw Overpass output
+    )
+    
+    if data:
+        attractions = _parse_attractions(data.get("elements", []))
+        attractions.sort(key=lambda x: x["name"].lower())
+        log(f"Получено {len(attractions)} достопримечательностей для {city}")
+        
+        if attractions:
+            try:
+                await redis_client.setex(cache_key, 86400 * 7, json.dumps(attractions, ensure_ascii=False))
+            except Exception as e:
+                error(f"Redis set error for {cache_key}: {e}")
+            
+        return attractions[:limit]
+        
+    error(f"Все зеркала Overpass недоступны для {city}")
+    return []
 
 def _parse_attractions(elements:list[dict])->list[dict]:
     attractions=[];seen=set()

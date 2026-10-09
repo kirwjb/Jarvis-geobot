@@ -22,7 +22,7 @@ button, a, [role=button] {
 
 /* Micro-interaction tactile feedback */
 button:active:not(:disabled), [role=button]:active:not(:disabled) {
-  transform: scale(0.975);
+  transform: scale(0.97);
 }
 
 .bottom-nav-item:active {

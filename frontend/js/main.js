@@ -1,12 +1,12 @@
-import { tg, state, persist } from './core/state.js?v=1791475344';
-import { applyTheme, syncTelegramTheme } from './ui/theme.js?v=1791475344';
-import { applyLanguage } from './ui/language.js?v=1791475344';
-import { go } from './core/router.js?v=1791475344';
-import { loadRegions, renderTags } from './features/travel.js?v=1791475344';
-import { loadFavorites } from './features/favorites.js?v=1791475344';
-import { updateFab } from './features/route.js?v=1791475344';
-import { bindAppEvents } from './app/events.js?v=1791475344';
-import { request } from './core/api.js?v=1791475344';
+import { tg, state, persist } from './core/state.js?v=20261009002';
+import { applyTheme, syncTelegramTheme } from './ui/theme.js?v=20261009002';
+import { applyLanguage } from './ui/language.js?v=20261009002';
+import { go } from './core/router.js?v=20261009002';
+import { loadRegions, renderTags } from './features/travel.js?v=20261009002';
+import { loadFavorites } from './features/favorites.js?v=20261009002';
+import { updateFab } from './features/route.js?v=20261009002';
+import { bindAppEvents } from './app/events.js?v=20261009002';
+import { request } from './core/api.js?v=20261009002';
 
 
 /** Force bust CSS cache since Telegram WebApp aggressively caches index.html */

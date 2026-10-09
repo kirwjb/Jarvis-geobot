@@ -3,11 +3,11 @@
 > A Telegram travel assistant for discovering places, planning routes, checking weather, and exploring cities.
 
 <p align="center">
-  <img src="frontend/logo.svg" alt="JARVIS GeoBot" width="350">
+  <img src="frontend/logo.svg" alt="JARVIS GeoBot" width="160">
 </p>
 
 <p align="center">
-  <img src="frontend/logo_art.svg" alt="JARVIS ASCII Art" width="700">
+  <img src="frontend/logo_art.svg" alt="JARVIS ASCII Art" width="600">
 </p>
 
 <p align="center">
@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <code>v2.1.08102026</code> · <strong>Stable Release</strong>
+  <code>v2.23.09102026</code> · <strong>Stable Release</strong>
 </p>
 
 ---
@@ -275,8 +275,7 @@ Jarvis-geobot/
 │
 ├── migrations/                # Alembic migrations
 │
-├── main.py                    # Telegram bot
-├── main_combined.py           # Bot + FastAPI + Mini App
+├── jarvis.py                  # Main entry point and CLI
 │
 ├── .env.example
 ├── alembic.ini
@@ -397,18 +396,12 @@ REDIS_PORT=6379
 
 ## ▶️ Running the Project
 
-### Telegram Bot only
-
-```bash
-python main.py
-```
-
 ### Full application
 
 For the complete Telegram + Mini App environment:
 
 ```bash
-python main_combined.py
+./jarvis -r
 ```
 
 This combines:
@@ -594,7 +587,7 @@ Recent updates and focus areas include:
 
 ### Current Release
 
-**`v2.0.1 — Stable`**
+**`v2.23.09102026 — Stable`**
 
 ---
 

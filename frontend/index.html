@@ -7,11 +7,11 @@
 <meta name="referrer" content="no-referrer">
 <title>JARVIS GEO-APP</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link rel="stylesheet" href="/css/style.css?v=20261008-999">
-<link rel="stylesheet" href="/css/components.css?v=20261008-999">
-<link rel="stylesheet" href="/css/interactions.css?v=20261008-999">
-<link rel="stylesheet" href="/css/weather.css?v=20261008-999">
-<link rel="icon" type="image/svg+xml" href="/logo.svg?v=20261008-999">
+<link rel="stylesheet" href="/css/style.css?v=20261009-003">
+<link rel="stylesheet" href="/css/components.css?v=20261009-003">
+<link rel="stylesheet" href="/css/interactions.css?v=20261009-003">
+<link rel="stylesheet" href="/css/weather.css?v=20261009-003">
+<link rel="icon" type="image/svg+xml" href="/logo.svg?v=20261009-003">
 </head>
 <body>
 <header class="top-controls" id="top-controls">
@@ -19,7 +19,7 @@
   <button class="top-control language-control" id="language-toggle" type="button" data-action="language" aria-label="Язык"><span id="language-flag">🇷🇺</span><span id="language-code">RU</span></button>
 </header>
 <main>
-<section class="screen active" id="splash"><div class="splash-wrap"><img class="logo" src="/logo.svg?v=20261008-999" alt="JARVIS" style="width:350px!important;height:350px!important;max-width:350px!important;max-height:350px!important;object-fit:contain"><h1 data-i18n="start_title">Путешествуй по Беларуси</h1><p data-i18n="start_subtitle">Достопримечательности, маршруты и погода</p><button class="btn-main" id="start-travel" type="button" data-action="start" data-i18n="start">Начать путешествие</button></div></section>
+<section class="screen active" id="splash"><div class="splash-wrap"><img class="logo" src="/logo.svg?v=20261009-003" alt="JARVIS" style="width:350px!important;height:350px!important;max-width:350px!important;max-height:350px!important;object-fit:contain"><h1 data-i18n="start_title">Путешествуй по Беларуси</h1><p data-i18n="start_subtitle">Достопримечательности, маршруты и погода</p><button class="btn-main" id="start-travel" type="button" data-action="start" data-i18n="start">Начать путешествие</button></div></section>
 <section class="screen" id="regions"><div class="topbar"><h2 data-i18n="region">Выберите регион</h2><span class="step">1/4</span></div><input id="region-search" class="search" type="search" data-i18n-placeholder="region_search" placeholder="Поиск региона..."><div class="grid" id="regions-grid"></div></section>
 <section class="screen" id="cities"><button class="back" type="button" data-action="back" data-screen="regions">← <span data-i18n="back">Назад</span></button><div class="topbar"><h2 id="region-title">Область</h2><span class="step">2/4</span></div><input id="city-search" class="search" type="search" data-i18n-placeholder="city_search" placeholder="Поиск города..."><div class="grid" id="cities-grid"></div></section>
 <section class="screen" id="weather"><div class="topbar"><h2 data-i18n="weather">Погода</h2></div><div id="weather-empty" class="weather-empty"><div class="weather-empty-icon">☀️</div><h3 data-i18n="weather_title">Погода по городу</h3><p data-i18n="weather_empty">Сначала выберите город в разделе «Путешествия»</p><button class="btn-main" type="button" data-action="choose-city" data-i18n="choose_city">Выбрать город</button></div><div id="weather-box" style="display:none"></div></section>
@@ -31,6 +31,6 @@
 <button class="fab hidden" id="fab" type="button">🗺 <span data-i18n="route_add">Маршрут</span> <span id="fab-count">0</span></button>
 <nav class="bottom-nav" id="bottom-nav"><button class="bottom-nav-item active" type="button" data-tab="travel"><span>🧭</span><span data-i18n="travel">Путешествия</span></button><button class="bottom-nav-item" type="button" data-tab="weather"><span>☀️</span><span data-i18n="weather">Погода</span></button><button class="bottom-nav-item" type="button" data-action="favorites" data-tab="favorites"><span>♡</span><span data-i18n="favorites">Избранное</span></button></nav>
 <div class="toast" id="toast"></div>
-<script type="module" src="/js/main.js?v=20261008-999"></script>
+<script type="module" src="/js/main.js?v=20261009-003"></script>
 </body>
 </html>
