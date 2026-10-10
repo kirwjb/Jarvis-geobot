@@ -64,16 +64,15 @@ def render_banner_frame(highlight_pos: int = -1) -> str:
                 buf.append(" ")
                 continue
             
-            # Базовый цвет из идеального второго градиента
+         
             ci = int((i / BANNER_WIDTH) * len(TARGET_GRADIENT))
             ci = min(len(TARGET_GRADIENT) - 1, ci)
             color_code = TARGET_GRADIENT[ci]
 
-            # Если на символ попадает луч блика — делаем его ярко-белым / неоновым
             if highlight_pos != -1 and abs(i - highlight_pos) <= 2:
-                buf.append(f"\033[38;5;255m\033[1m{ch}")  # Белый ослепляющий блик
+                buf.append(f"\033[38;5;255m\033[1m{ch}")  
             elif highlight_pos != -1 and abs(i - highlight_pos) <= 4:
-                buf.append(f"\033[38;5;159m\033[1m{ch}")  # Рассеянный свет вокруг блика
+                buf.append(f"\033[38;5;159m\033[1m{ch}")  
             else:
                 buf.append(f"\033[38;5;{color_code}m\033[1m{ch}")
         buf.append("\033[0m")
@@ -81,26 +80,32 @@ def render_banner_frame(highlight_pos: int = -1) -> str:
     return "\n".join(lines)
 
 
-def animate_banner():
-    """Пробегает волна света слева направо и оставляет статичный градиент #2."""
-    sys.stdout.write("\033[?25l")  # Спрятать курсор
+def animate_banner(passes: int = 3, speed: float = 0.016):
+    """
+    Запускает быстрый неоновый блик несколько раз подряд (sweep pulses),
+    после чего фиксирует идеальный статичный градиент #2.
+    """
+    sys.stdout.write("\033[?25l")  
     sys.stdout.flush()
     try:
-        # Пробегаем лучом слева направо по ширине надписи
-        for pos in range(0, BANNER_WIDTH + 6, 2):
-            frame = render_banner_frame(highlight_pos=pos)
-            if pos > 0:
-                sys.stdout.write(f"\033[{len(BANNER_ART) + 1}A\r")
-            sys.stdout.write(frame + "\n")
-            sys.stdout.flush()
-            time.sleep(0.025)
+        first_frame = True
+        for p in range(passes):
+            for pos in range(0, BANNER_WIDTH + 6, 2):
+                frame = render_banner_frame(highlight_pos=pos)
+                if not first_frame:
+                    sys.stdout.write(f"\033[{len(BANNER_ART) + 1}A\r")
+                sys.stdout.write(frame + "\n")
+                sys.stdout.flush()
+                first_frame = False
+                time.sleep(speed)
+            if p < passes - 1:
+                time.sleep(0.35)
 
-        # Финальный кадр: чистый, идеальный градиент 2 без артефактов
         sys.stdout.write(f"\033[{len(BANNER_ART) + 1}A\r")
         sys.stdout.write(render_banner_frame(highlight_pos=-1) + "\n")
         sys.stdout.flush()
     finally:
-        sys.stdout.write("\033[?25h")  # Вернуть курсор
+        sys.stdout.write("\033[?25h")  
         sys.stdout.flush()
         
 def get_ascii_banner() -> str:
@@ -121,7 +126,7 @@ def get_ascii_banner() -> str:
 
 def print_welcome_and_help():
     """Print the welcoming colorful ASCII art and comprehensive CLI guide."""
-    banner = animate_banner()
+    animate_banner()
     py_ver = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
     in_venv = sys.prefix != sys.base_prefix
     env_badge = f"{C_GREEN}● venv active{R}" if in_venv else f"{C_YELLOW}○ global python{R}"
@@ -129,28 +134,43 @@ def print_welcome_and_help():
     if len(root_disp) > 42:
         root_disp = "..." + root_disp[-39:]
 
-    print(f"""{banner}
+    author_badge = f"{C_CYAN}{BOLD}Izotov Kirill{R} {C_MUTED}(2025–2026){R}"
+    repo_link = f"{C_SKY}https://github.com/kirwjb/Jarvis-geobot{R}"
+    love_note = f"{C_MUTED}with {C_RED}♥{R}{C_MUTED} for {C_GREEN}OpenStreetMap{R}{C_MUTED} & {C_BLUE}Telegram Mini Apps{R}"
+  
+    print(f"""
+    {C_LINE}╭───{R} {C_MUTED}Crafted by{R} {author_badge} {C_LINE}·{R} {repo_link}
+    {C_LINE}╰───{R} {love_note}
+  
+    {C_CYAN}⚡ J.A.R.V.I.S.{R} {C_WHITE}{BOLD}Autonomous GeoBot & Mini App Orchestrator{R}
+    {C_MUTED}Python {py_ver}  ·  {env_badge}  ·  {C_PURPLE}v2.4.0 (Clean High-Perf Engine){R}
+    {C_MUTED}Workspace: {C_WHITE}{root_disp}{R}
+    {C_LINE}{"─" * 72}{R}
+  
+    {C_SKY}{BOLD}🚀  SERVICE RUNNER & AUTOMATION{R}
+      {C_CYAN}./Jarvis -r{R}, {C_CYAN}--run{R}             Launch FastAPI backend, Bot & ngrok tunnel
+      {C_CYAN}./Jarvis -r --port <n>{R}         Run backend & tunnel on custom port {C_MUTED}(default: 8000){R}
+      {C_CYAN}./Jarvis -r --auth=0{R}          Bypass TMA auth; browser testing with mock user session
+      {C_CYAN}npm start{R}                      Equivalent npm script runner {C_MUTED}(or npm run jarvis:run){R}
 
-  {C_CYAN}⚡ J.A.R.V.I.S.{R} {C_WHITE}{BOLD}Autonomous GeoBot & Mini App Orchestrator{R}
-  {C_MUTED}Python {py_ver}  ·  {env_badge}  ·  {C_PURPLE}v2.4.0 (Clean High-Perf Engine){R}
-  {C_MUTED}Workspace: {C_WHITE}{root_disp}{R}
-  {C_LINE}{"─" * 72}{R}
-
-  {C_SKY}{BOLD}🚀  SERVICE RUNNER & AUTOMATION{R}
-    {C_CYAN}./Jarvis -r{R}, {C_CYAN}--run{R}             Launch FastAPI backend, Bot & ngrok tunnel
-    {C_CYAN}./Jarvis -r --port <n>{R}         Run backend & tunnel on custom port {C_MUTED}(default: 8000){R}
-    {C_CYAN}./Jarvis -r --auth=0{R}          Bypass TMA auth; browser testing with mock user session
-    {C_CYAN}npm start{R}                      Equivalent npm script runner {C_MUTED}(or npm run jarvis:run){R}
-
-  {C_PURPLE}{BOLD}🛠️   ADMINISTRATION CONSOLE{R}
+  {C_PURPLE}{BOLD}🛠️   SUPERADMIN CONSOLE (RBAC RESTRICTED){R}
     {C_MAGENTA}./Jarvis -a{R}, {C_MAGENTA}--admin{R}           Open interactive console Admin Control Center
-    {C_MAGENTA}./Jarvis -a --auth=0{R}         Open Admin Control Center with mock auth active
-    {C_MAGENTA}./Jarvis -a stats{R}              Live metrics: registered users, POIs & cache hits
-    {C_MAGENTA}./Jarvis -a users{R}              Browse registered Telegram users and role statuses
-    {C_MAGENTA}./Jarvis -a ban <id|user>{R}       Instantly restrict user access across App & Bot
+    {C_MAGENTA}./Jarvis -a stats{R}              Live metrics: registered users, POIs, routes & cache
+    {C_MAGENTA}./Jarvis -a users{R}              Browse registered users directory with pagination & filters
+    {C_MAGENTA}./Jarvis -a db-vacuum{R}          Run PostgreSQL VACUUM ANALYZE optimizer
+    {C_MAGENTA}./Jarvis -a migrations{R}         Audit pending Alembic schema revisions
+    {C_MAGENTA}./Jarvis -a redis-metrics{R}      Inspect hit/miss ratio, memory footprint & keyspace
+    {C_MAGENTA}./Jarvis -a latency{R}            Measure real-time round-trip latency to DB, Redis & OSM
+    {C_MAGENTA}./Jarvis -a ban <id|user>{R}       Restrict user access across App & Bot
     {C_MAGENTA}./Jarvis -a unban <id|user>{R}     Lift restriction flags for specified user
+    {C_MAGENTA}./Jarvis -a mute <id|user>{R}      Mute conversational privileges for user
+    {C_MAGENTA}./Jarvis -a unmute <id|user>{R}    Restore conversational privileges
+    {C_MAGENTA}./Jarvis -a promote <id|user>{R}   Promote standard user to ADMIN role
+    {C_MAGENTA}./Jarvis -a demote <id|user>{R}    Demote admin user to standard USER role
     {C_MAGENTA}./Jarvis -a maintenance{R}         Toggle global maintenance mode {C_MUTED}(Redis switch){R}
     {C_MAGENTA}./Jarvis -a clear-city <name>{R}   Purge cached OSM places & routes for target city
+    {C_MAGENTA}./Jarvis -a guillotine <user>{R}   Satirical French Revolution decree of exile
+    {C_MAGENTA}./Jarvis -a salon{R}               Rococo tea & champagne high-society telemetry dossier
 
   {C_GREEN}{BOLD}🔍  DIAGNOSTICS & TESTING{R}
     {C_GREEN}./Jarvis status{R}                Run pre-flight healthcheck {C_MUTED}(Postgres, Redis, ngrok){R}

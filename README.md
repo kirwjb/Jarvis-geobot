@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <code>v2.23.09102026</code> · <strong>Stable Release</strong>
+  <code>v2.25.10102026</code> · <strong>Stable Release</strong>
 </p>
 
 ---
@@ -514,80 +514,131 @@ The Mini App also provides RU/BY interface localization where implemented.
 
 ---
 
-## 🛡️ Security
+---
 
-JARVIS includes several application security mechanisms:
+## 🛡️ Security & Role-Based Access Control (RBAC)
 
-- Telegram authentication
-- Administrator permission checks
-- SUPERADMIN roles
-- Rate limiting
-- Redis-based state management
-- Protected administrative actions
-- Maintenance mode
-- API error handling
-- Separation of user and administrative functionality
+JARVIS features a strict three-tier **Role-Based Access Control (RBAC)** architecture:
 
-Sensitive configuration is provided through environment variables rather than source code.
+```text
+USER (1) < ADMIN (2) < SUPERADMIN (3)
+```
+
+- **👑 SUPERADMIN (Supreme & Immutable)**:
+  - Configured strictly via environment variables (`BOT_OWNER_ID` or `SUPERADMIN_ID` or `SUPER_ADMINS`).
+  - Supreme, unalterable platform privileges across all sub-systems.
+  - Exclusive access to host CLI administration (`./Jarvis -a`) and in-chat governance (`/promote`, `/demote`, `/maintenance`).
+  - Immune from moderation actions (cannot be banned, muted, or demoted by anyone).
+- **🛡️ ADMIN (Moderation & Operations)**:
+  - Granted administrative privileges exclusively by a Superadmin.
+  - In-chat moderation privileges (`/ban`, `/unban`, `/mute`, `/unmute`, `/user`, `/broadcast`).
+  - Bypasses global maintenance mode alongside Superadmins.
+  - Enforced target hierarchy: Admins cannot ban or mute fellow Admins or Superadmins.
+- **👤 USER (Standard Citizens)**:
+  - Standard Telegram bot conversation and Telegram Mini App travel discovery.
+  - Governed by rate limiting and global maintenance mode restrictions.
+
+---
+
+## 🛠️ Administrative Orchestration & CLI Control Center
+
+Administration is split cleanly between in-chat Telegram moderation and direct host machine orchestration via `./Jarvis -a`:
+
+### In-Chat Telegram Moderation & Governance
+
+| Command | Scope | Functionality |
+|---|---|---|
+| `/ban <id \| @username> [reason]` | ADMIN & SUPERADMIN | Restrict user access across Telegram bot and Mini App |
+| `/unban <id \| @username>` | ADMIN & SUPERADMIN | Reinstate full user access privileges |
+| `/mute <id \| @username> [reason]` | ADMIN & SUPERADMIN | Suppress conversational messaging privileges |
+| `/unmute <id \| @username>` | ADMIN & SUPERADMIN | Restore conversational messaging privileges |
+| `/user <id \| @username>` | ADMIN & SUPERADMIN | Inspect user dossier: role, registration date, route count, and flags |
+| `/broadcast <text>` | ADMIN & SUPERADMIN | Safe batch dispatch to active users (respects Telegram TPS limits) |
+| `/promote <id \| @username>` | SUPERADMIN ONLY | Elevate standard user to `ADMIN` role |
+| `/demote <id \| @username>` | SUPERADMIN ONLY | Strip administrative privileges back to `USER` role |
+| `/maintenance [on\|off]` | SUPERADMIN ONLY | Toggle global platform maintenance flag in Redis |
+
+### Terminal Admin Control Center (`./Jarvis -a` in `src/cli/admin.py`)
+
+Restricted exclusively to the platform Superadmin with direct host access:
+
+```bash
+# Interactive Control Center
+./Jarvis -a
+
+# Operational & Database Metrics
+./Jarvis -a stats                     # System metrics: registered users, POIs, routes, cache
+./Jarvis -a db-vacuum                 # Execute PostgreSQL VACUUM ANALYZE optimizer
+./Jarvis -a migrations                # Audit pending Alembic schema revisions
+./Jarvis -a redis-metrics             # Inspect cache hit/miss ratio, memory footprint, keyspace
+./Jarvis -a latency                   # Measure round-trip latency to Postgres, Redis & OSM mirrors
+
+# User Directory & Role Governance
+./Jarvis -a users                     # Paginated user browser with role filtering & flag toggling
+./Jarvis -a ban <id|user> [reason]    # Ban user across DB and Redis cache
+./Jarvis -a unban <id|user>           # Unban user
+./Jarvis -a mute <id|user> [reason]   # Mute user
+./Jarvis -a unmute <id|user>          # Unmute user
+./Jarvis -a promote <id|user>         # Elevate user to ADMIN
+./Jarvis -a demote <id|user>          # Demote user to USER
+./Jarvis -a clear-city <name>         # Purge cached OSM places, photos, and weather for a city
+
+# Bourgeois & Aristocratic Satirical Easter Eggs
+./Jarvis -a guillotine <user>         # Satirical French Revolution decree of exile
+./Jarvis -a salon                     # Rococo tea & champagne high-society telemetry dossier
+```
+
+---
+
+## 🌤️ Weather Service Guard & Localization (RU / BY)
+
+The weather subsystem in `src/services/weather_service.py` includes proactive input validation and localization:
+
+- **Missing City Guard**: Catches unselected city scenarios (`None`, `"none"`, `"null"`, `"undefined"`, or empty strings) without querying external APIs or raising unhandled HTTP 500 exceptions.
+- **Bilingual Guidance (RU / BY)**:
+  - 🇷🇺 **Russian (RU)**: *"Сначала выберите город в разделе «Путешествия»."*
+  - 🇧🇾 **Belarusian (BY)**: *"Спачатку выберыце горад у раздзеле «Падарожжы»."*
+- **Mini App Empty State**: Automatically presents the dedicated empty weather view with a single-tap *"Выбрать город"* / *"Выбраць горад"* navigation button.
 
 ---
 
 ## 🧑‍💻 Development
 
-The project follows a modular architecture.
-
-Frontend functionality is organized into:
+The project follows a modular architecture:
 
 ```text
-core/
-features/
-ui/
+frontend/
+  core/
+  features/
+  ui/
+
+src/
+  cli/
+  database/
+  handlers/
+  middleware/
+  routers/
+  services/
+  utils/
 ```
-
-Backend functionality is organized into:
-
-```text
-database/
-handlers/
-middleware/
-routers/
-services/
-utils/
-```
-
-When adding a new feature, developers should preferably:
-
-1. Keep frontend functionality inside the appropriate feature module.
-2. Keep shared UI helpers inside `ui/`.
-3. Keep application state inside the state module.
-4. Add backend endpoints to the appropriate router.
-5. Keep persistent data in PostgreSQL.
-6. Use Redis for temporary state where appropriate.
-7. Add localization for user-facing text.
-8. Respect Telegram authentication and permission boundaries.
-9. Reuse existing caching mechanisms where possible.
 
 ---
 
 ## 🚀 Release Status
 
-JARVIS GeoBot is now in a **Stable** release.
-
-The project is actively developed and tested. Interfaces, APIs, and individual features may continue to change between releases.
-
-Recent updates and focus areas include:
-
-- Improving Mini App reliability
-- Improving places discovery
-- Improving image availability
-- Refining navigation
-- Improving route planning
-- Improving performance
-- Refining the overall user experience
+JARVIS GeoBot is in a **Stable** production release.
 
 ### Current Release
 
-**`v2.23.09102026 — Stable`**
+**`v2.25.10102026 — Stable`**
+
+#### What's New in v2.25.10102026:
+- 👑 **Three-Tier RBAC Hierarchy**: Complete `USER < ADMIN < SUPERADMIN` permission model with immutable Superadmin authority.
+- 🛠️ **Administrative CLI Center**: Vacuum analyzer, Alembic migration audit, Redis cache telemetry, round-trip latency diagnostics, and paginated user directory.
+- 🤖 **In-Chat Moderation Suite**: Full set of moderation (`/ban`, `/unban`, `/mute`, `/unmute`, `/user`, `/broadcast`) and governance (`/promote`, `/demote`, `/maintenance`) handlers.
+- 🌤️ **Weather Service Guard**: Catches missing city payloads gracefully and guides users in Russian (RU) and Belarusian (BY).
+- ⚖️ **Satirical Easter Eggs**: Revolutionary guillotine exile decrees and Rococo high-society telemetry salon.
+- 🧪 **Test Suite Expansion**: Comprehensive unit tests validating all RBAC privilege boundaries, middleware filters, and weather guards.
 
 ---
 

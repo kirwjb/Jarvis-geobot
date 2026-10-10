@@ -36,10 +36,23 @@ function weatherIcon(description='') {
 
 export async function loadWeather(city=state.city){
   const box=$('#weather-box'), empty=$('#weather-empty');
+  const isMissing = !city || ['none', 'null', 'undefined', 'nan', ''].includes(String(city).trim().toLowerCase());
+  if (isMissing) {
+    if(box)box.style.display='none';
+    if(empty)empty.style.display='flex';
+    return;
+  }
   if(empty)empty.style.display='none';
   if(box){box.style.display='block';box.innerHTML=`<div class="weather-shell"><div class="loading">${esc(t('weather_loading'))}</div></div>`;}
-  if(!city){if(empty)empty.style.display='flex';return;}
-  try{state.weather=await request(`/weather/${encodeURIComponent(city)}`);renderWeather();}
+  try{
+    state.weather=await request(`/weather/${encodeURIComponent(city)}`);
+    if(state.weather && (!state.weather.temp && (!state.weather.city || ['none', 'null'].includes(state.weather.city.toLowerCase())))){
+      if(box)box.style.display='none';
+      if(empty)empty.style.display='flex';
+      return;
+    }
+    renderWeather();
+  }
   catch(e){if(box)box.innerHTML=`<div class="weather-shell"><div class="empty">${esc(t('weather_failed'))}</div></div>`;toast(`${t('weather_failed')}: ${e.message}`)}
 }
 

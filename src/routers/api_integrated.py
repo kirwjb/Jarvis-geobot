@@ -19,7 +19,7 @@ from src.services.map_service import build_google_maps_link
 from src.services.optimizer_service import optimizeRoutePoints
 from src.services.parser_service import get_attractions_osm
 from src.services.routes_service import get_distance_osrm
-from src.services.weather_service import get_weather
+from src.services.weather_service import get_weather, is_city_missing, get_city_selection_reminder
 from src.services.wiki_service import get_wikimedia_photo
 from src.utils.languages import get_text
 from src.utils.utils import error, info, log, logger
@@ -160,13 +160,43 @@ async def get_cities(region_id:str):
     for name,cities in REGIONS.items():
         if normalize_region_id(name)==region_id:return [CityResponse(name=c,region=name) for c in cities]
     raise HTTPException(status_code=404,detail=get_text("choose_city_empty"))
-@app.get("/api/weather/{city}",response_model=WeatherResponse)
-async def get_weather_endpoint(city:str):
-    cached=await check_weather_cache(city)
-    if cached:return WeatherResponse(city=city,temp=cached.get("temp"),description=cached.get("description",""),humidity=cached.get("humidity"),wind_speed=cached.get("wind_speed"),pressure=cached.get("pressure"),cached=True)
+def _extract_lang(request: Optional[Request] = None, lang_param: Optional[str] = None) -> str:
+    if lang_param and lang_param.strip().lower() in ("by", "be", "ru"):
+        return lang_param.strip().lower()
+    if request:
+        accept = request.headers.get("accept-language", "").lower()
+        if "be" in accept or "by" in accept:
+            return "by"
+    return "ru"
+
+@app.get("/api/weather", response_model=WeatherResponse)
+@app.get("/api/weather/", response_model=WeatherResponse)
+@app.get("/api/weather/{city}", response_model=WeatherResponse)
+async def get_weather_endpoint(city: Optional[str] = None, request: Request = None, lang: Optional[str] = None):
+    resolved_lang = _extract_lang(request, lang)
+    if is_city_missing(city):
+        weather = json.loads(await get_weather(city, lang=resolved_lang))
+        return WeatherResponse(
+            city=weather.get("city") or "",
+            temp=None,
+            description=weather.get("description", ""),
+            humidity=None,
+            wind_speed=None,
+            pressure=None,
+            cached=False,
+        )
+
+    cached = await check_weather_cache(city)
+    if cached:
+        return WeatherResponse(city=city, temp=cached.get("temp"), description=cached.get("description", ""), humidity=cached.get("humidity"), wind_speed=cached.get("wind_speed"), pressure=cached.get("pressure"), cached=True)
     try:
-        weather=json.loads(await get_weather(city));await set_weather_cache(city,weather);return WeatherResponse(city=city,temp=weather.get("temp"),description=weather.get("description",""),humidity=weather.get("humidity"),wind_speed=weather.get("wind_speed"),pressure=weather.get("pressure"))
-    except Exception as exc:error(f"Weather API error for {city}: {exc}");raise HTTPException(status_code=500,detail=get_text("internal_error"))
+        weather = json.loads(await get_weather(city, lang=resolved_lang))
+        if weather.get("temp") is not None:
+            await set_weather_cache(city, weather)
+        return WeatherResponse(city=city, temp=weather.get("temp"), description=weather.get("description", ""), humidity=weather.get("humidity"), wind_speed=weather.get("wind_speed"), pressure=weather.get("pressure"))
+    except Exception as exc:
+        error(f"Weather API error for {city}: {exc}")
+        raise HTTPException(status_code=500, detail=get_text("internal_error"))
 
 @app.post("/api/pois/query")
 async def query_pois(query:POIQuery):

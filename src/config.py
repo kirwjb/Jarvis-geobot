@@ -56,11 +56,27 @@ WIKIMEDIA_API_URL = os.getenv("WIKIMEDIA_API_URL", "").strip()
 
 DEFAULT_LANGUAGE = os.getenv("DEFAULT_LANGUAGE", "ru").strip().lower()
 
+BOT_OWNER_ID_RAW = os.getenv("BOT_OWNER_ID") or os.getenv("SUPERADMIN_ID")
+BOT_OWNER_ID = (
+    int(BOT_OWNER_ID_RAW.strip())
+    if BOT_OWNER_ID_RAW and BOT_OWNER_ID_RAW.strip().isdigit()
+    else None
+)
+
 super_admins_raw = os.getenv("SUPER_ADMINS", "")
+_superadmin_set = set()
 if super_admins_raw:
-    SUPERADMINS = [int(x.strip()) for x in super_admins_raw.split(",") if x.strip().isdigit()]
-else:
-    SUPERADMINS = []
+    for x in super_admins_raw.split(","):
+        x = x.strip()
+        if x.isdigit():
+            _superadmin_set.add(int(x))
+
+if BOT_OWNER_ID is not None:
+    _superadmin_set.add(BOT_OWNER_ID)
+
+SUPERADMINS = sorted(list(_superadmin_set))
+if not BOT_OWNER_ID and SUPERADMINS:
+    BOT_OWNER_ID = SUPERADMINS[0]
 
 REGIONS = {
     "Минская область": ["Минск", "Борисов", "Солигорск", "Молодечно"],

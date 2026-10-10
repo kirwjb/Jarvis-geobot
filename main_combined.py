@@ -15,6 +15,7 @@ from src.config import TOKEN
 from src.database.session_manager import redis_client
 from src.middleware.security import SecurityMiddleware
 from src.handlers.start import register_start_handlers
+from src.handlers.admin import register_admin_handlers
 from src.utils.languages import get_text
 from src.utils.utils import log, error
 
@@ -54,8 +55,8 @@ bot.setup_middleware(security_mw)
 
 
 async def init_bot():
-    # Only welcoming start handler serving as database entry point is registered
     await register_start_handlers(bot)
+    await register_admin_handlers(bot, redis_client)
     log(get_text("bot_started"))
 
 

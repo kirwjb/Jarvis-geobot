@@ -43,6 +43,27 @@ class User(Base):
         Boolean,
         default=False,
     )
+    is_muted: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+    )
+    role: Mapped[str] = mapped_column(
+        String(20),
+        default="USER",
+    )
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime,
+        default=datetime.datetime.utcnow,
+    )
+
+    def get_role(self, superadmin_ids: set[int] | list[int] | None = None) -> str:
+        if superadmin_ids and self.user_id in superadmin_ids:
+            return "SUPERADMIN"
+        if self.role == "SUPERADMIN":
+            return "SUPERADMIN"
+        if self.is_admin or self.role == "ADMIN":
+            return "ADMIN"
+        return "USER"
 
 
 class OsmCache(Base):
