@@ -4,7 +4,6 @@ import pytest
 
 from src.services.routes_service import get_distance_osrm
 
-
 class FakeResponse:
     def __init__(
         self,
@@ -33,7 +32,6 @@ class FakeResponse:
     async def text(self):
         return self._text
 
-
 class FakeSession:
     def __init__(self, response):
         self.response = response
@@ -60,7 +58,6 @@ class FakeSession:
         self.request_url = url
         self.request_params = params
         return self.response
-
 
 @pytest.mark.asyncio
 async def test_get_distance_osrm_success(
@@ -105,7 +102,6 @@ async def test_get_distance_osrm_success(
         "annotations": "false",
     }
 
-
 @pytest.mark.asyncio
 async def test_get_distance_osrm_no_routes(
     monkeypatch,
@@ -133,7 +129,6 @@ async def test_get_distance_osrm_no_routes(
 
     assert distance is None
 
-
 @pytest.mark.asyncio
 async def test_get_distance_osrm_http_error(
     monkeypatch,
@@ -158,7 +153,6 @@ async def test_get_distance_osrm_http_error(
     )
 
     assert distance is None
-
 
 @pytest.mark.asyncio
 async def test_get_distance_osrm_timeout(

@@ -59,11 +59,6 @@ SIZES = {
     "medium": (1200, 800),
 }
 
-
-# ---------------------------------------------------------------------------
-# Парсинг и разрешение через OSM и Wikidata
-# ---------------------------------------------------------------------------
-
 def _parse_osm_id(place_id: str) -> tuple[str | None, int | None]:
     """Извлекает тип и числовой ID OSM из place_id."""
     if not place_id:
@@ -72,7 +67,6 @@ def _parse_osm_id(place_id: str) -> tuple[str | None, int | None]:
     if m:
         return m.group(1).lower(), int(m.group(2))
     return None, None
-
 
 async def _fetch_osm_tags(session: aiohttp.ClientSession, osm_type: str, osm_id: int) -> dict:
     """Получает теги OSM элемента через API OpenStreetMap с fallback на Overpass."""
@@ -87,7 +81,6 @@ async def _fetch_osm_tags(session: aiohttp.ClientSession, osm_type: str, osm_id:
     except Exception as exc:
         log(f"OSM API fetch failed for {osm_type}:{osm_id}: {exc}")
 
-    # Fallback на Overpass
     overpass_urls = [
         "https://overpass-api.de/api/interpreter",
         "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
@@ -104,7 +97,6 @@ async def _fetch_osm_tags(session: aiohttp.ClientSession, osm_type: str, osm_id:
         except Exception:
             continue
     return {}
-
 
 async def _get_photo_by_title(
     session: aiohttp.ClientSession,
@@ -146,7 +138,6 @@ async def _get_photo_by_title(
             return photo
     return None
 
-
 async def _resolve_via_osm_and_wikidata(
     session: aiohttp.ClientSession,
     place_id: str,
@@ -171,7 +162,6 @@ async def _resolve_via_osm_and_wikidata(
         f"image={tags.get('image')}, commons={tags.get('wikimedia_commons')}"
     )
 
-    # 1. Прямой тег 'image' на объекте OSM
     osm_image = tags.get("image")
     if osm_image:
         clean_img = osm_image.split("/")[-1].replace("File:", "").replace("file:", "")
@@ -182,7 +172,6 @@ async def _resolve_via_osm_and_wikidata(
                 log(f"Wikimedia ACCEPT from OSM 'image' tag: {clean_img}")
                 return photo, tags, None
 
-    # 2. Прямой тег 'wikimedia_commons' на объекте OSM
     found_category = None
     osm_commons = tags.get("wikimedia_commons")
     if osm_commons:
@@ -195,7 +184,6 @@ async def _resolve_via_osm_and_wikidata(
         elif clean_commons.lower().startswith("category:"):
             found_category = clean_commons
 
-    # 3. Wikidata Q-ID -> свойство P18 (image) и P373 (Commons category)
     wikidata_id = tags.get("wikidata")
     if wikidata_id and re.match(r"^Q\d+$", wikidata_id.strip()):
         wikidata_id = wikidata_id.strip()
@@ -210,7 +198,6 @@ async def _resolve_via_osm_and_wikidata(
                     entity = w_data.get("entities", {}).get(wikidata_id, {})
                     claims = entity.get("claims", {})
 
-                    # P18 (image)
                     p18_claims = claims.get("P18", [])
                     for stmt in p18_claims:
                         p18_file = stmt.get("mainsnak", {}).get("datavalue", {}).get("value")
@@ -220,7 +207,6 @@ async def _resolve_via_osm_and_wikidata(
                                 log(f"Wikimedia ACCEPT Wikidata P18 image: {p18_file} for {wikidata_id}")
                                 return photo, tags, found_category
 
-                    # P373 (commons category)
                     p373_claims = claims.get("P373", [])
                     for stmt in p373_claims:
                         p373_cat = stmt.get("mainsnak", {}).get("datavalue", {}).get("value")
@@ -232,11 +218,6 @@ async def _resolve_via_osm_and_wikidata(
             error(f"Wikidata resolution error for {wikidata_id}: {exc}")
 
     return None, tags, found_category
-
-
-# ---------------------------------------------------------------------------
-# Поиск по категориям Wikimedia Commons
-# ---------------------------------------------------------------------------
 
 async def _search_category_members(
     session: aiohttp.ClientSession,
@@ -320,7 +301,6 @@ async def _search_category_members(
 
     return None
 
-
 async def _search_categories_by_text(
     session: aiohttp.ClientSession,
     query: str,
@@ -344,11 +324,6 @@ async def _search_categories_by_text(
     except Exception as exc:
         error(f"Ошибка поиска категорий для '{query}': {exc}")
         return []
-
-
-# ---------------------------------------------------------------------------
-# Проверка категорий и геотегов файла
-# ---------------------------------------------------------------------------
 
 async def _get_page_context(
     session: aiohttp.ClientSession,
@@ -378,7 +353,6 @@ async def _get_page_context(
     except Exception as exc:
         error(f"Wikimedia context error '{title}': {exc}")
         return {}
-
 
 async def _is_belarus_related(
     session: aiohttp.ClientSession,
@@ -427,11 +401,6 @@ async def _is_belarus_related(
 
     return False, coordinates
 
-
-# ---------------------------------------------------------------------------
-# Главная функция поиска
-# ---------------------------------------------------------------------------
-
 async def get_wikimedia_photo(
     name: str,
     city: str,
@@ -469,9 +438,6 @@ async def get_wikimedia_photo(
         async with aiohttp.ClientSession(headers=HEADERS) as session:
             type_words = TYPE_QUERY_WORDS.get(category, "")
 
-            # -----------------------------------------------------------
-            # 1. OSM ТЕГИ И WIKIDATA P18 (IMAGE)
-            # -----------------------------------------------------------
             osm_photo, osm_tags, osm_category = await _resolve_via_osm_and_wikidata(
                 session=session,
                 place_id=place_id,
@@ -482,9 +448,6 @@ async def get_wikimedia_photo(
                 log(f"Wikimedia ACCEPT OSM/WIKIDATA: {name}")
                 return osm_photo
 
-            # -----------------------------------------------------------
-            # 2. ПОИСК ПО ИЗВЕСТНОЙ КАТЕГОРИИ (ИЗ WIKIDATA / OSM)
-            # -----------------------------------------------------------
             if osm_category:
                 log(f"Wikimedia SEARCH KNOWN CATEGORY: {osm_category}")
                 photo = await _search_category_members(
@@ -499,9 +462,6 @@ async def get_wikimedia_photo(
                     log(f"Wikimedia ACCEPT KNOWN CATEGORY: {osm_category}")
                     return photo
 
-            # -----------------------------------------------------------
-            # 3. ГЕОПОИСК ОКОЛО КООРДИНАТ
-            # -----------------------------------------------------------
             if lat is not None and lon is not None:
                 log(f"Wikimedia GEO SEARCH: {lat},{lon}")
                 photo = await _search_by_coordinates(
@@ -518,9 +478,6 @@ async def get_wikimedia_photo(
                     log(f"Wikimedia ACCEPT GEO: {name}")
                     return photo
 
-            # -----------------------------------------------------------
-            # 4. КАСКАДНЫЕ ТЕКСТОВЫЕ ЗАПРОСЫ
-            # -----------------------------------------------------------
             queries = generate_cascading_queries(
                 name=name,
                 city=city,
@@ -546,9 +503,6 @@ async def get_wikimedia_photo(
                     log(f"Wikimedia ACCEPT TEXT: '{query}' -> {name}")
                     return photo
 
-            # -----------------------------------------------------------
-            # 5. ПОИСК КАТЕГОРИЙ WIKIMEDIA COMMONS ПО ОЧИЩЕННЫМ ТЕРМИНАМ
-            # -----------------------------------------------------------
             cat_queries = generate_category_search_queries(
                 name=name,
                 city=city,
@@ -571,9 +525,6 @@ async def get_wikimedia_photo(
                         log(f"Wikimedia ACCEPT CATEGORY FALLBACK: '{fc}'")
                         return photo
 
-            # -----------------------------------------------------------
-            # 6. ВТОРИЧНЫЙ FALLBACK (КАРТИНЫ, ЭКСПОНАТЫ, ИНТЕРЬЕРЫ)
-            # -----------------------------------------------------------
             if fallback_candidates:
                 log(f"Wikimedia EVALUATE FALLBACK CANDIDATES: {len(fallback_candidates)} items")
                 fallback_candidates.sort(key=lambda x: x[0], reverse=True)
@@ -593,11 +544,6 @@ async def get_wikimedia_photo(
 
     log(f"Wikimedia FINAL: фото не найдено: {name} | {city} | {place_id}")
     return None
-
-
-# ---------------------------------------------------------------------------
-# Текстовый поиск Wikimedia
-# ---------------------------------------------------------------------------
 
 async def _search_by_text(
     session: aiohttp.ClientSession,
@@ -676,7 +622,6 @@ async def _search_by_text(
             log(f"Wikimedia REJECT score=0: {title}")
             continue
 
-        # Вторичные визуалы (картины, экспонаты, интерьеры) сохраняем в fallback
         if is_secondary_visual(info, title=title):
             log(f"Wikimedia CANDIDATE fallback (exhibit/artwork): score={score} | {title}")
             if fallback_collector is not None:
@@ -726,11 +671,6 @@ async def _search_by_text(
         log(f"Wikimedia DOWNLOAD FAILED: {title}")
 
     return None
-
-
-# ---------------------------------------------------------------------------
-# Геопоиск
-# ---------------------------------------------------------------------------
 
 async def _search_by_coordinates(
     session: aiohttp.ClientSession,
@@ -853,11 +793,6 @@ async def _search_by_coordinates(
 
     return None
 
-
-# ---------------------------------------------------------------------------
-# Скачивание и сохранение
-# ---------------------------------------------------------------------------
-
 async def _build_photo(
     session: aiohttp.ClientSession,
     info: dict,
@@ -904,7 +839,6 @@ async def _build_photo(
         ),
     }
 
-
 async def _download_bytes(
     session: aiohttp.ClientSession,
     original_url: str,
@@ -936,7 +870,6 @@ async def _download_bytes(
     except Exception as exc:
         error(f"Ошибка загрузки фотографии: {exc}")
         return None
-
 
 def _process_and_save_image(
     data: bytes,
@@ -976,7 +909,6 @@ def _process_and_save_image(
         urls[size_name] = f"/media/places/{clean_pid}/{filename}"
 
     return urls
-
 
 def _metadata_value(metadata: dict, key: str) -> str | None:
     """Извлекает значение из extmetadata Wikimedia."""

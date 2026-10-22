@@ -8,7 +8,7 @@ debug.html
 .DS_Store
 logs/
 admin_logs/
-versions/
+!migrations/versions/
 # Logs
 logs
 *.log
@@ -22,7 +22,7 @@ node_modules
 dist
 dist-ssr
 *.local
-
+presentation/
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -46,8 +46,24 @@ commits.txt
 agy
 test_osm_fallback.py
 
+# Scratch and temporary caches
+scratch/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
 # Python
 __pycache__/
 *.py[cod]
 *.class
 *.sqlite3
+*.sqlite
+*.db
+
+# agents
+.agents/
+
+# Teamwork and research
+teamwork/
+PROJECT.md

@@ -1,12 +1,11 @@
-import { state } from '../../core/state.js?v=20261009002';
-import { request } from '../../core/api.js?v=20261009002';
-import { toast } from '../../ui/helpers.js?v=20261009002';
-import { t } from '../../ui/language.js?v=20261009002';
-import { placesState, buildPlacesQueryKey } from './state.js?v=20261009002';
-import { renderPlaces } from './view.js?v=20261009002';
-import { loadMissingPhotos } from './photos.js?v=20261009002';
+import { state } from '../../core/state.js?v=20261017-010';
+import { request } from '../../core/api.js?v=20261017-010';
+import { toast } from '../../ui/helpers.js?v=20261017-010';
+import { t } from '../../ui/language.js?v=20261017-010';
+import { placesState, buildPlacesQueryKey } from './state.js?v=20261017-010';
+import { renderPlaces } from './view.js?v=20261017-010';
+import { loadMissingPhotos } from './photos.js?v=20261017-010';
 
-/** Fetch and display one POI page; cached pages avoid repeat backend calls. */
 export async function loadPage(nextPage) {
   if (nextPage < 0 || placesState.loading) return;
   const key = buildPlacesQueryKey(state);
@@ -33,13 +32,10 @@ export async function loadPage(nextPage) {
       limit: placesState.pageSize + 1,
       offset: nextPage * placesState.pageSize,
     };
-    if (placesState.search) {
-      payload.search = placesState.search;
-    } else {
-      payload.region = state.region;
-      payload.city = state.city;
-      payload.tags = [...state.tags];
-    }
+    if (state.region) payload.region = state.region;
+    if (state.city) payload.city = state.city;
+    if (state.tags && state.tags.size) payload.tags = [...state.tags];
+    if (placesState.search) payload.search = placesState.search;
     if (placesState.shuffleSeed) payload.shuffle = placesState.shuffleSeed;
     const data = await request('/pois/query', {
       method: 'POST',

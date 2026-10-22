@@ -16,10 +16,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-
 class Base(DeclarativeBase):
     pass
-
 
 class User(Base):
     __tablename__ = "users"
@@ -65,7 +63,6 @@ class User(Base):
             return "ADMIN"
         return "USER"
 
-
 class OsmCache(Base):
     __tablename__ = "osm_cache"
 
@@ -93,7 +90,6 @@ class OsmCache(Base):
     lon: Mapped[Optional[float]] = mapped_column(
         Float,
     )
-
 
 class Place(Base):
     """
@@ -183,7 +179,6 @@ class Place(Base):
         nullable=False,
     )
 
-
 class Favorite(Base):
     __tablename__ = "favorites"
 
@@ -228,7 +223,6 @@ class Favorite(Base):
         default=datetime.datetime.utcnow,
     )
 
-
 class History(Base):
     __tablename__ = "history"
 
@@ -256,7 +250,6 @@ class History(Base):
         default=datetime.datetime.utcnow,
     )
 
-
 class PlacePhoto(Base):
     __tablename__ = "place_photos"
 
@@ -268,3 +261,36 @@ class PlacePhoto(Base):
     local_url_medium = Column(String, nullable=True)
     author = Column(String, nullable=True)
     license = Column(String, nullable=True)
+
+class PhotoReport(Base):
+    __tablename__ = "photo_reports"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        autoincrement=True,
+    )
+    place_id: Mapped[str] = mapped_column(
+        String(255),
+        index=True,
+        nullable=False,
+    )
+    photo_url: Mapped[Optional[str]] = mapped_column(
+        String(1000),
+        nullable=True,
+    )
+    reason: Mapped[str] = mapped_column(
+        String(500),
+        default="inappropriate",
+        nullable=False,
+    )
+    details: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime,
+        default=datetime.datetime.utcnow,
+        nullable=False,
+    )
+

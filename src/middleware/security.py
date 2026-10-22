@@ -1,4 +1,5 @@
-from telebot.handler_backends import BaseMiddleware
+from telebot.handler_backends import BaseMiddleware, CancelUpdate
+from telebot.types import CallbackQuery
 from sqlalchemy import select
 from src.database.db import AsyncSessionLocal
 from src.database.models import User
@@ -8,6 +9,16 @@ from src.utils.redis_keys import RedisKeys
 from .limiter import RateLimiter
 from src.utils.languages import get_text
 
+class CancelPayload(dict, CancelUpdate):
+    """Payload returned by middleware to halt TeleBot update processing."""
+    def __init__(self):
+        dict.__init__(self, {"cancel": True})
+        CancelUpdate.__init__(self)
+
+    def __eq__(self, other):
+        if other == "cancel" or other == {"cancel": True}:
+            return True
+        return super().__eq__(other)
 
 class SecurityMiddleware(BaseMiddleware):
     def __init__(self, redis_client):
@@ -17,50 +28,79 @@ class SecurityMiddleware(BaseMiddleware):
         self.update_types = ['message', 'callback_query']
 
     async def pre_process(self, message, data):
-        user = message.from_user if message.from_user else (message.callback_query.from_user if message.callback_query else None)
+        if hasattr(message, "from_user") and message.from_user:
+            user = message.from_user
+        elif hasattr(message, "callback_query") and message.callback_query:
+            user = getattr(message.callback_query, "from_user", None)
+        else:
+            user = None
         if not user:
             return
 
         user_id = user.id
 
-        # 1. Superadmin has absolute immunity and bypasses all restrictions
         if is_superadmin(user_id):
             return
 
-        # 2. Check maintenance mode (SUPERADMIN and ADMIN allowed, standard users blocked)
         maintenance = await self.redis.get(RedisKeys.maintenance())
         if maintenance == "1":
             user_is_admin = await self._is_admin(user_id)
             if not user_is_admin:
-                chat_id = getattr(message, "chat", None)
-                if chat_id and hasattr(chat_id, "id"):
+                if isinstance(message, CallbackQuery):
                     try:
-                        await message.bot.send_message(chat_id.id, get_text("maintenance_mode_msg"))
+                        await message.bot.answer_callback_query(
+                            message.id,
+                            text=get_text("maintenance_mode_msg"),
+                            show_alert=True,
+                        )
                     except Exception:
                         pass
-                return "cancel"
+                else:
+                    chat_id = getattr(message, "chat", None)
+                    if chat_id and hasattr(chat_id, "id"):
+                        try:
+                            await message.bot.send_message(chat_id.id, get_text("maintenance_mode_msg"))
+                        except Exception:
+                            pass
+                return CancelPayload()
 
-        # 3. Rate limiting check
         if not await self.limiter.is_allowed(user_id):
             await self._send_rejection(message)
-            return {"cancel": True}
+            return CancelPayload()
 
-        # 4. Ban check
         if await self._is_banned(user_id):
-            return {"cancel": True}
-
-        # 5. Mute check
-        if await self._is_muted(user_id):
-            chat = getattr(message, "chat", None)
-            if chat and hasattr(chat, "id"):
+            if isinstance(message, CallbackQuery):
                 try:
-                    await message.bot.send_message(
-                        chat.id,
-                        "🔇 Ваши сообщения ограничены модератором (режим mute).",
+                    await message.bot.answer_callback_query(
+                        message.id,
+                        text="⛔ Вы заблокированы в системе.",
+                        show_alert=True,
                     )
                 except Exception:
                     pass
-            return {"cancel": True}
+            return CancelPayload()
+
+        if await self._is_muted(user_id):
+            if isinstance(message, CallbackQuery):
+                try:
+                    await message.bot.answer_callback_query(
+                        message.id,
+                        text="🔇 Ваши сообщения ограничены модератором (режим mute).",
+                        show_alert=True,
+                    )
+                except Exception:
+                    pass
+            else:
+                chat = getattr(message, "chat", None)
+                if chat and hasattr(chat, "id"):
+                    try:
+                        await message.bot.send_message(
+                            chat.id,
+                            "🔇 Ваши сообщения ограничены модератором (режим mute).",
+                        )
+                    except Exception:
+                        pass
+            return CancelPayload()
 
     async def _is_admin(self, user_id: int) -> bool:
         if is_superadmin(user_id):
@@ -123,7 +163,24 @@ class SecurityMiddleware(BaseMiddleware):
             return False
 
     async def _send_rejection(self, message):
-        if hasattr(message, 'callback_query') and message.callback_query:
+        if isinstance(message, CallbackQuery):
+            try:
+                await message.bot.answer_callback_query(
+                    message.id, 
+                    text=get_text("flood_msg"), 
+                    show_alert=True
+                )
+            except Exception:
+                pass
+        elif hasattr(message, "chat") and getattr(message, "chat", None) is not None:
+            chat = message.chat
+            chat_id = getattr(chat, "id", None)
+            if chat_id:
+                try:
+                    await message.bot.send_message(chat_id, get_text("flood_msg"))
+                except Exception:
+                    pass
+        elif getattr(message, 'callback_query', None) is not None:
             try:
                 await message.bot.answer_callback_query(
                     message.callback_query.id, 

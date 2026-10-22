@@ -1,9 +1,23 @@
-import { request } from '../../core/api.js?v=20261009002';
-import { $, esc } from '../../ui/helpers.js?v=20261009002';
-import { t } from '../../ui/language.js?v=20261009002';
-import { placesState } from './state.js?v=20261009002';
+import { request } from '../../core/api.js?v=20261017-010';
+import { $, esc } from '../../ui/helpers.js?v=20261017-010';
+import { t } from '../../ui/language.js?v=20261017-010';
+import { placesState } from './state.js?v=20261017-010';
+import { ICONS } from '../../ui/icons.js?v=20261017-010';
 
-/** Normalize any asset or Wikimedia image URL (stripping local dev hosts, ensuring HTTPS). */
+if (typeof window !== 'undefined') {
+  window.__jarvisImgFallback = (img, rawFallback) => {
+    if (rawFallback && !img.dataset.triedFallback) {
+      img.dataset.triedFallback = '1';
+      img.src = rawFallback;
+    } else {
+      img.onerror = null;
+      if (img.parentElement) {
+        img.parentElement.innerHTML = `<div class="poi-placeholder">${ICONS.placeholderBuilding}</div>`;
+      }
+    }
+  };
+}
+
 export function resolvePhotoUrl(rawUrl) {
   if (!rawUrl || typeof rawUrl !== 'string') return null;
   let url = rawUrl.trim();
@@ -16,7 +30,6 @@ export function resolvePhotoUrl(rawUrl) {
   return url;
 }
 
-/** Construct proxy URL for remote Wikimedia images to bypass referer blocks and mixed content. */
 export function proxyPhotoUrl(rawUrl) {
   const url = resolvePhotoUrl(rawUrl);
   if (!url) return null;
@@ -26,29 +39,40 @@ export function proxyPhotoUrl(rawUrl) {
   return url;
 }
 
-/** Extract the preferred image URL from an API photo response. */
-export function photoUrl(data) {
-  const raw =
-    data?.photo?.thumbnail_url ||
-    data?.photo?.original_url ||
-    data?.image_url ||
-    data?.images?.medium ||
-    data?.images?.thumb ||
-    data?.images?.original ||
-    null;
+export function photoUrl(data, preferHighRes = false) {
+  let raw = null;
+  if (preferHighRes) {
+    raw =
+      data?.photo?.medium_url ||
+      data?.images?.medium ||
+      data?.photo?.original_url ||
+      data?.images?.original ||
+      data?.image_url ||
+      data?.photo?.thumbnail_url ||
+      data?.images?.thumb ||
+      null;
+  } else {
+    raw =
+      data?.photo?.thumbnail_url ||
+      data?.images?.thumb ||
+      data?.image_url ||
+      data?.photo?.medium_url ||
+      data?.images?.medium ||
+      data?.photo?.original_url ||
+      data?.images?.original ||
+      null;
+  }
   return resolvePhotoUrl(raw);
 }
 
-/**
- * Generate a resilient HTML <img> tag:
- * 1. Automatically uses photo-proxy for remote Wikimedia images to bypass 403 / Referer blocks.
- * 2. Uses local /media/ URLs directly.
- * 3. Gracefully falls back to placeholder icon if image fails to load.
- */
+export function detailPhotoUrl(data) {
+  return photoUrl(data, true);
+}
+
 export function renderImageTag(src, alt = '', className = '') {
   const resolved = resolvePhotoUrl(src);
   if (!resolved) {
-    return '<div class="poi-placeholder">🏛️</div>';
+    return `<div class="poi-placeholder">${ICONS.placeholderBuilding}</div>`;
   }
 
   const displayUrl = proxyPhotoUrl(resolved);
@@ -58,14 +82,16 @@ export function renderImageTag(src, alt = '', className = '') {
 
   const isProxied = displayUrl.startsWith('/api/geo/photo-proxy?url=');
   const rawFallback = isProxied ? esc(resolved) : '';
-  const fallbackHandler = isProxied
-    ? `onerror="if(this.dataset.triedFallback){this.onerror=null;this.parentElement.innerHTML='<div class=\\'poi-placeholder\\'>🏛️</div>';}else{this.dataset.triedFallback='1';this.src='${rawFallback}';}"`
-    : `onerror="this.onerror=null;this.parentElement.innerHTML='<div class=\\'poi-placeholder\\'>🏛️</div>';"`;
+  const fallbackHandler = `onerror="__jarvisImgFallback(this, '${rawFallback}')"`;
 
-  return `<img ${classAttr} src="${escapedSrc}" alt="${escapedAlt}" loading="lazy" decoding="async" ${fallbackHandler}>`;
+  const isDetail = className && className.includes('jarvis-detail-image');
+  const loadingAttr = isDetail
+    ? 'loading="eager" fetchpriority="high" decoding="sync"'
+    : 'loading="lazy" decoding="async"';
+
+  return `<img ${classAttr} src="${escapedSrc}" alt="${escapedAlt}" ${loadingAttr} ${fallbackHandler}>`;
 }
 
-/** Load missing Wikimedia URLs without downloading image bytes through our backend. */
 export async function loadMissingPhotos(places) {
   const missing = places.filter(
     (place) =>
@@ -80,7 +106,6 @@ export async function loadMissingPhotos(places) {
   }
 }
 
-/** Resolve one place to a photo URL and update its card. */
 async function loadPlacePhoto(place) {
   const id = String(place.id);
   placesState.photoLoading.add(id);
@@ -108,7 +133,7 @@ async function loadPlacePhoto(place) {
       }
     }
   } catch (_) {
-    // Missing media must not break the POI card display.
+
   } finally {
     placesState.photoLoading.delete(id);
   }

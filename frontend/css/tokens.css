@@ -1,0 +1,138 @@
+
+:root {
+
+  --bg-primary: var(--tg-theme-bg-color, #0f141c);
+  --bg-secondary: var(--tg-theme-secondary-bg-color, #171f2c);
+  --text-primary: var(--tg-theme-text-color, #f8fafc);
+  --text-secondary: var(--tg-theme-hint-color, #94a3b8);
+  --accent: var(--tg-theme-button-color, #38bdf8);
+  --accent-text: var(--tg-theme-button-text-color, #ffffff);
+
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+  --color-danger: #f87171;
+  --color-info: #38bdf8;
+  --color-cyan: #22d3ee;
+
+  --liquid-sheen: none;
+  --glass-bg: rgba(22, 27, 34, 0.75);
+  --glass-bg-subtle: rgba(255, 255, 255, 0.05);
+  --glass-bg-elevated: rgba(13, 17, 23, 0.88);
+  --glass-bg-hover: rgba(30, 38, 48, 0.85);
+  --glass-bg-active: rgba(56, 189, 248, 0.12);
+
+  --border-hairline: 1px solid rgba(255, 255, 255, 0.08);
+  --border-hairline-subtle: 1px solid rgba(255, 255, 255, 0.05);
+  --border-hairline-active: 1px solid var(--accent);
+
+  --backdrop-blur: blur(12px);
+  --backdrop-blur-elevated: blur(16px);
+
+  --press-scale: scale(0.985);
+  --press-transition: transform 120ms cubic-bezier(0.25, 1, 0.5, 1),
+                      background 120ms cubic-bezier(0.25, 1, 0.5, 1);
+
+  --shadow-hairline: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-subtle: 0 2px 6px rgba(0, 0, 0, 0.2);
+  --shadow-elevated: 0 4px 16px rgba(0, 0, 0, 0.35);
+  --shadow-specular-rim: none;
+  --shadow-ambient: 0 2px 8px rgba(0, 0, 0, 0.24);
+
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+  --radius-pill: 9999px;
+
+  --safe-area-bottom: max(env(safe-area-inset-bottom, 0px), 16px);
+  --safe-area-top: max(env(safe-area-inset-top, 0px), 12px);
+
+  --ease-spring: cubic-bezier(0.18, 0.89, 0.32, 1.15);
+  --ease-tactile: cubic-bezier(0.25, 1, 0.5, 1);
+  --duration-tactile: 120ms;
+}
+
+html.light-theme,
+body.light-theme,
+[data-theme="light"] {
+  --bg-primary: var(--tg-theme-bg-color, #ffffff);
+  --bg-secondary: var(--tg-theme-secondary-bg-color, #f8fafc);
+  --text-primary: var(--tg-theme-text-color, #0f172a);
+  --text-secondary: var(--tg-theme-hint-color, #64748b);
+  --accent: var(--tg-theme-button-color, #007aff);
+  --accent-text: #ffffff;
+
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+  --color-info: #007aff;
+  --color-cyan: #06b6d4;
+
+  --liquid-sheen: none;
+  --glass-bg: rgba(255, 255, 255, 0.85);
+  --glass-bg-subtle: rgba(0, 0, 0, 0.04);
+  --glass-bg-elevated: rgba(255, 255, 255, 0.92);
+  --glass-bg-hover: rgba(255, 255, 255, 0.95);
+  --glass-bg-active: rgba(0, 122, 255, 0.08);
+
+  --border-hairline: 1px solid rgba(0, 0, 0, 0.08);
+  --border-hairline-subtle: 1px solid rgba(0, 0, 0, 0.04);
+  --border-hairline-active: 1px solid var(--accent);
+
+  --backdrop-blur: blur(12px);
+  --backdrop-blur-elevated: blur(16px);
+
+  --shadow-hairline: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-subtle: 0 2px 6px rgba(0, 0, 0, 0.04);
+  --shadow-elevated: 0 4px 16px rgba(0, 0, 0, 0.06);
+  --shadow-specular-rim: none;
+  --shadow-ambient: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not(.dark-theme) {
+    --bg-primary: var(--tg-theme-bg-color, #ffffff);
+    --bg-secondary: var(--tg-theme-secondary-bg-color, #f8fafc);
+    --text-primary: var(--tg-theme-text-color, #0f172a);
+    --text-secondary: var(--tg-theme-hint-color, #64748b);
+    --accent: var(--tg-theme-button-color, #007aff);
+    --accent-text: #ffffff;
+
+    --liquid-sheen: none;
+    --glass-bg: rgba(255, 255, 255, 0.85);
+    --glass-bg-subtle: rgba(0, 0, 0, 0.04);
+    --glass-bg-elevated: rgba(255, 255, 255, 0.92);
+    --glass-bg-hover: rgba(255, 255, 255, 0.95);
+    --glass-bg-active: rgba(0, 122, 255, 0.08);
+
+    --border-hairline: 1px solid rgba(0, 0, 0, 0.08);
+    --border-hairline-subtle: 1px solid rgba(0, 0, 0, 0.04);
+    --border-hairline-active: 1px solid var(--accent);
+
+    --backdrop-blur: blur(12px);
+    --backdrop-blur-elevated: blur(16px);
+
+    --shadow-hairline: 0 1px 2px rgba(0, 0, 0, 0.04);
+    --shadow-subtle: 0 2px 6px rgba(0, 0, 0, 0.04);
+    --shadow-elevated: 0 4px 16px rgba(0, 0, 0, 0.06);
+    --shadow-specular-rim: none;
+    --shadow-ambient: 0 2px 8px rgba(0, 0, 0, 0.04);
+  }
+}
+
+.card-glass {
+  position: relative;
+  background: var(--glass-bg);
+  backdrop-filter: var(--backdrop-blur);
+  -webkit-backdrop-filter: var(--backdrop-blur);
+  border: var(--border-hairline);
+  border-radius: var(--radius-lg, 16px);
+  box-shadow: var(--shadow-ambient);
+  overflow: hidden;
+}
+
+.card-glass::before {
+  display: none !important;
+  content: none !important;
+}

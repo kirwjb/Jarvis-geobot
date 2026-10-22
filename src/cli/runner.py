@@ -33,7 +33,6 @@ RESET = "\033[0m"
 
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 
-
 def find_ngrok_binary() -> str | None:
     """Find ngrok executable on PATH or common macOS/Linux locations."""
     which_ngrok = shutil.which("ngrok")
@@ -51,7 +50,6 @@ def find_ngrok_binary() -> str | None:
             return str(p)
     return None
 
-
 def fetch_ngrok_public_url(timeout_secs: float = 8.0) -> str | None:
     """Poll ngrok's local management API for the active public HTTPS tunnel."""
     start_time = time.time()
@@ -64,7 +62,6 @@ def fetch_ngrok_public_url(timeout_secs: float = 8.0) -> str | None:
                 if response.status == 200:
                     data = json.loads(response.read().decode("utf-8"))
                     tunnels = data.get("tunnels", [])
-                    # Look for HTTPS tunnel first
                     for t in tunnels:
                         public_url = t.get("public_url", "")
                         if public_url.startswith("https://"):
@@ -75,14 +72,13 @@ def fetch_ngrok_public_url(timeout_secs: float = 8.0) -> str | None:
             time.sleep(0.5)
     return None
 
-
 def free_port_if_occupied(port: int = 8000) -> None:
     """Check if the target port is in use and gracefully terminate stale backend processes."""
     try:
         import socket
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             if s.connect_ex(("127.0.0.1", port)) != 0:
-                return  # Port is free
+                return
 
         print(f"{YELLOW}⚠️  Port {port} is currently in use. Cleaning up stale process...{RESET}")
         cmd = ["lsof", "-ti", f":{port}"]
@@ -104,7 +100,6 @@ def free_port_if_occupied(port: int = 8000) -> None:
     except Exception as exc:
         print(f"{DIM}Note on port check: {exc}{RESET}")
 
-
 def run_services(host: str = "0.0.0.0", port: int = 8000, mock_auth: bool = False):
     """Launch backend and ngrok concurrently with graceful shutdown."""
     print(f"""{CYAN}{BOLD}
@@ -113,7 +108,6 @@ def run_services(host: str = "0.0.0.0", port: int = 8000, mock_auth: bool = Fals
 ║        FastAPI · AsyncTeleBot · Mini App · ngrok             ║
 ╚══════════════════════════════════════════════════════════════╝{RESET}""")
 
-    # Check and free port 8000 if a zombie instance is still listening
     free_port_if_occupied(port)
 
     processes: list[subprocess.Popen] = []
@@ -123,7 +117,6 @@ def run_services(host: str = "0.0.0.0", port: int = 8000, mock_auth: bool = Fals
         for p in processes:
             if p.poll() is None:
                 try:
-                    # Terminate process group if available
                     pgid = os.getpgid(p.pid)
                     os.killpg(pgid, signal.SIGINT)
                 except Exception:
@@ -132,7 +125,6 @@ def run_services(host: str = "0.0.0.0", port: int = 8000, mock_auth: bool = Fals
                     except Exception:
                         pass
 
-        # Give up to 3 seconds for clean shutdown
         stop_time = time.time()
         for p in processes:
             while p.poll() is None and (time.time() - stop_time < 3.0):
@@ -155,7 +147,6 @@ def run_services(host: str = "0.0.0.0", port: int = 8000, mock_auth: bool = Fals
     if hasattr(signal, "SIGHUP"):
         signal.signal(signal.SIGHUP, clean_exit)
 
-    # 1. Start Backend process
     backend_script = str(ROOT_DIR / "main_combined.py")
     env = os.environ.copy()
     env["PYTHONUNBUFFERED"] = "1"
@@ -173,7 +164,6 @@ def run_services(host: str = "0.0.0.0", port: int = 8000, mock_auth: bool = Fals
     )
     processes.append(backend_proc)
 
-    # 2. Check existing ngrok or launch a new ngrok process
     existing_url = fetch_ngrok_public_url(timeout_secs=1.5)
     ngrok_url = None
 
@@ -198,7 +188,6 @@ def run_services(host: str = "0.0.0.0", port: int = 8000, mock_auth: bool = Fals
             print(f"{YELLOW}⚠️  ngrok binary not found on PATH. Backend running locally without tunnel.{RESET}")
             print(f"{DIM}   To enable public tunnels, install ngrok: brew install ngrok{RESET}")
 
-    # 3. Print Dashboard
     print(f"\n{GREEN}{BOLD}✅ JARVIS SERVICES ONLINE{RESET}")
     print(f" • Local Backend:    {CYAN}http://127.0.0.1:{port}{RESET}")
     if ngrok_url:
@@ -210,7 +199,6 @@ def run_services(host: str = "0.0.0.0", port: int = 8000, mock_auth: bool = Fals
 
     print(f"\n{DIM}[Press Ctrl+C at any time to gracefully terminate all services]{RESET}\n")
 
-    # Monitor backend process
     try:
         while True:
             status = backend_proc.poll()

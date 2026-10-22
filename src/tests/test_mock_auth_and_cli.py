@@ -12,26 +12,21 @@ from src.middleware.telegram_auth import (
     MOCK_USER,
 )
 
-
 def test_extract_auth_bypass_flag():
-    # Various formats of auth bypass flags
     assert extract_auth_bypass_flag(["-r", "--auth=0"]) == (True, ["-r"])
     assert extract_auth_bypass_flag(["-r", "--auth", "0"]) == (True, ["-r"])
     assert extract_auth_bypass_flag(["-a", "--mock-auth"]) == (True, ["-a"])
     assert extract_auth_bypass_flag(["--no-auth", "stats"]) == (True, ["stats"])
     assert extract_auth_bypass_flag(["-r", "-m"]) == (True, ["-r"])
 
-    # Normal flags without auth bypass
     assert extract_auth_bypass_flag(["-r", "--port", "8080"]) == (False, ["-r", "--port", "8080"])
     assert extract_auth_bypass_flag(["status"]) == (False, ["status"])
-
 
 def test_parse_port_arg():
     assert parse_port_arg(["--port", "9000"]) == 9000
     assert parse_port_arg(["-p", "8080"]) == 8080
     assert parse_port_arg(["--port=7000"]) == 7000
     assert parse_port_arg([]) == 8000
-
 
 @pytest.mark.asyncio
 async def test_telegram_auth_middleware_blocks_when_mock_auth_disabled(monkeypatch):
@@ -53,7 +48,6 @@ async def test_telegram_auth_middleware_blocks_when_mock_auth_disabled(monkeypat
 
     response = await middleware.dispatch(request, call_next)
     assert response.status_code == 401
-
 
 @pytest.mark.asyncio
 async def test_telegram_auth_middleware_allows_when_mock_auth_enabled(monkeypatch):

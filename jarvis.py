@@ -20,12 +20,10 @@ import sys
 from pathlib import Path
 import time
 
-# Add project root to sys.path
 ROOT_DIR = Path(__file__).resolve().parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-# ANSI 256-Color & Typography Codes
 C_CYAN = "\033[38;5;51m"
 C_SKY = "\033[38;5;45m"
 C_BLUE = "\033[38;5;39m"
@@ -63,8 +61,7 @@ def render_banner_frame(highlight_pos: int = -1) -> str:
             if ch == " ":
                 buf.append(" ")
                 continue
-            
-         
+
             ci = int((i / BANNER_WIDTH) * len(TARGET_GRADIENT))
             ci = min(len(TARGET_GRADIENT) - 1, ci)
             color_code = TARGET_GRADIENT[ci]
@@ -78,7 +75,6 @@ def render_banner_frame(highlight_pos: int = -1) -> str:
         buf.append("\033[0m")
         lines.append("".join(buf))
     return "\n".join(lines)
-
 
 def animate_banner(passes: int = 3, speed: float = 0.016):
     """
@@ -107,7 +103,7 @@ def animate_banner(passes: int = 3, speed: float = 0.016):
     finally:
         sys.stdout.write("\033[?25h")  
         sys.stdout.flush()
-        
+
 def get_ascii_banner() -> str:
     """Generate color-gradient ASCII art banner."""
     lines = [""]
@@ -123,7 +119,6 @@ def get_ascii_banner() -> str:
         lines.append("".join(buf))
     return "\n".join(lines)
 
-
 def print_welcome_and_help():
     """Print the welcoming colorful ASCII art and comprehensive CLI guide."""
     animate_banner()
@@ -137,16 +132,16 @@ def print_welcome_and_help():
     author_badge = f"{C_CYAN}{BOLD}Izotov Kirill{R} {C_MUTED}(2025–2026){R}"
     repo_link = f"{C_SKY}https://github.com/kirwjb/Jarvis-geobot{R}"
     love_note = f"{C_MUTED}with {C_RED}♥{R}{C_MUTED} for {C_GREEN}OpenStreetMap{R}{C_MUTED} & {C_BLUE}Telegram Mini Apps{R}"
-  
+
     print(f"""
     {C_LINE}╭───{R} {C_MUTED}Crafted by{R} {author_badge} {C_LINE}·{R} {repo_link}
     {C_LINE}╰───{R} {love_note}
-  
+
     {C_CYAN}⚡ J.A.R.V.I.S.{R} {C_WHITE}{BOLD}Autonomous GeoBot & Mini App Orchestrator{R}
     {C_MUTED}Python {py_ver}  ·  {env_badge}  ·  {C_PURPLE}v2.4.0 (Clean High-Perf Engine){R}
     {C_MUTED}Workspace: {C_WHITE}{root_disp}{R}
     {C_LINE}{"─" * 72}{R}
-  
+
     {C_SKY}{BOLD}🚀  SERVICE RUNNER & AUTOMATION{R}
       {C_CYAN}./Jarvis -r{R}, {C_CYAN}--run{R}             Launch FastAPI backend, Bot & ngrok tunnel
       {C_CYAN}./Jarvis -r --port <n>{R}         Run backend & tunnel on custom port {C_MUTED}(default: 8000){R}
@@ -189,14 +184,12 @@ def print_welcome_and_help():
   {C_LINE}{"─" * 72}{R}
 """)
 
-
 async def run_diagnostics():
     """Run an interactive pre-flight healthcheck of all system dependencies."""
     banner = get_ascii_banner()
     print(banner)
     print(f"\n{BOLD}═══════════════ PRE-FLIGHT SYSTEM HEALTHCHECK ═══════════════{RESET}\n")
 
-    # 1. Check PostgreSQL
     db_ok = False
     db_err = ""
     try:
@@ -207,7 +200,6 @@ async def run_diagnostics():
     except Exception as exc:
         db_err = str(exc).split("\n")[0]
 
-    # 2. Check Redis
     redis_ok = False
     redis_err = ""
     try:
@@ -220,12 +212,10 @@ async def run_diagnostics():
     except Exception as exc:
         redis_err = str(exc).split("\n")[0]
 
-    # 3. Check Port 8000
     port_in_use = False
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         port_in_use = (s.connect_ex(("127.0.0.1", 8000)) == 0)
 
-    # 4. Check ngrok binary & active tunnels
     ngrok_path = shutil.which("ngrok")
     for alt in ["/usr/local/bin/ngrok", "/opt/homebrew/bin/ngrok", str(Path.home() / "bin" / "ngrok")]:
         if not ngrok_path and os.path.exists(alt) and os.access(alt, os.X_OK):
@@ -240,7 +230,6 @@ async def run_diagnostics():
         except Exception:
             pass
 
-    # Print Report
     print(f" {C_WHITE}• PostgreSQL Database:{R} ", end="")
     if db_ok:
         print(f"{C_GREEN}🟢 ONLINE (Connection established){R}")
@@ -270,7 +259,6 @@ async def run_diagnostics():
 
     print(f"\n{C_LINE}{'─' * 62}{R}\n")
 
-
 def parse_port_arg(args: list[str]) -> int:
     """Extract port from args if provided (e.g., --port 8080 or -p 8080)."""
     for i, a in enumerate(args):
@@ -287,7 +275,6 @@ def parse_port_arg(args: list[str]) -> int:
         elif a.isdigit() and len(a) in (4, 5):
             return int(a)
     return 8000
-
 
 def extract_auth_bypass_flag(args: list[str]) -> tuple[bool, list[str]]:
     """Extract mock auth flag (--auth=0, --auth 0, --mock-auth, --no-auth, -m)."""
@@ -306,13 +293,11 @@ def extract_auth_bypass_flag(args: list[str]) -> tuple[bool, list[str]]:
         i += 1
     return mock_auth, clean_args
 
-
 def run_tests():
     """Run pytest test suite."""
     print(f"\n{C_CYAN}🧪 Executing JARVIS test suite via pytest...{R}\n")
     res = subprocess.run([sys.executable, "-m", "pytest", "src/tests", "-v"], cwd=str(ROOT_DIR))
     sys.exit(res.returncode)
-
 
 def main():
     if len(sys.argv) < 2:
@@ -337,7 +322,6 @@ def main():
         run_services(port=port, mock_auth=mock_auth)
     elif arg in ("-a", "--admin", "admin"):
         from src.cli.admin import main as admin_main
-        # Pass remaining arguments to admin CLI
         asyncio.run(admin_main(sub_args))
     elif arg in ("status", "--status", "check", "doctor"):
         asyncio.run(run_diagnostics())
@@ -351,7 +335,6 @@ def main():
         print(f"\n{C_RED}⚠️  Unknown option:{R} {arg}")
         print_welcome_and_help()
         sys.exit(1)
-
 
 if __name__ == "__main__":
     main()

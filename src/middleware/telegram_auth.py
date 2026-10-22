@@ -21,15 +21,12 @@ MOCK_USER = {
     "language_code": "ru",
 }
 
-
 def is_mock_auth_enabled() -> bool:
     """Check whether mock authentication mode is enabled (--auth=0)."""
     return os.getenv("MOCK_AUTH") == "1" or os.getenv("JARVIS_MOCK_AUTH") == "1"
 
-
 class TelegramAuthError(ValueError):
     """Raised when Telegram Mini App initData is missing or invalid."""
-
 
 def validate_init_data(
     init_data: str,
@@ -98,7 +95,6 @@ def validate_init_data(
 
     return user
 
-
 class TelegramAuthMiddleware(BaseHTTPMiddleware):
     """Protect /api endpoints with Telegram Mini App initData."""
 
@@ -110,11 +106,6 @@ class TelegramAuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
 
-        # Endpoints that are accessible without Telegram Mini App headers:
-        # - Non-API endpoints (e.g. static files, frontend HTML, /media)
-        # - Auth bootstrap endpoint
-        # - Photo proxy (invoked by <img> tags which cannot attach Authorization headers)
-        # - Health check endpoint
         if (
             not path.startswith("/api/")
             or path == "/api/auth/telegram"
@@ -124,7 +115,6 @@ class TelegramAuthMiddleware(BaseHTTPMiddleware):
         ):
             return await call_next(request)
 
-        # Mock authentication mode: bypass signature verification & inject mock user session
         if is_mock_auth_enabled():
             request.state.telegram_user = MOCK_USER
             request.state.telegram_user_id = MOCK_USER["id"]

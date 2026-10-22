@@ -57,7 +57,6 @@ from src.services.rbac import (
 )
 from src.utils.redis_keys import RedisKeys
 
-# ANSI Typography & 256 Colors
 CYAN = "\033[96m"
 GREEN = "\033[92m"
 YELLOW = "\033[93m"
@@ -68,7 +67,6 @@ BOLD = "\033[1m"
 DIM = "\033[2m"
 RESET = "\033[0m"
 
-
 def print_banner(active_superadmin_id: Optional[int] = None):
     owner_str = f"Owner #{active_superadmin_id}" if active_superadmin_id else "Host Machine Owner"
     print(f"""{CYAN}{BOLD}
@@ -78,7 +76,6 @@ def print_banner(active_superadmin_id: Optional[int] = None):
 ╚══════════════════════════════════════════════════════════════════════╝{RESET}
   {MAGENTA}👑 Authenticated Superadmin:{RESET} {BOLD}{owner_str}{RESET} {GREEN}[Direct Host Access: Verified]{RESET}
 """)
-
 
 def verify_cli_access(caller_id: Optional[int] = None) -> int:
     """
@@ -100,13 +97,8 @@ def verify_cli_access(caller_id: Optional[int] = None) -> int:
             sys.exit(1)
         return caller_id
 
-    # Fallback to configured primary Superadmin / Bot Owner
     return BOT_OWNER_ID or SUPERADMINS[0]
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 1. DATABASE & PERFORMANCE OPERATIONS
-# ─────────────────────────────────────────────────────────────────────────────
 async def get_system_stats() -> dict:
     """Fetch database row counts, active flags, and Redis connectivity."""
     async with AsyncSessionLocal() as session:
@@ -144,7 +136,6 @@ async def get_system_stats() -> dict:
         "redis_ok": redis_ok,
     }
 
-
 async def show_stats():
     """Print comprehensive telemetry report."""
     stats = await get_system_stats()
@@ -165,7 +156,6 @@ async def show_stats():
     print(f" • Route Query History:   {CYAN}{stats['history']}{RESET}")
     print(f"{BOLD}═════════════════════════════════════════════════════════════{RESET}\n")
 
-
 async def run_db_vacuum_analyze():
     """Run PostgreSQL VACUUM ANALYZE to reclaim storage and refresh planner stats."""
     print(f"\n{CYAN}⚙️  Executing PostgreSQL VACUUM ANALYZE across all database tables...{RESET}")
@@ -179,7 +169,6 @@ async def run_db_vacuum_analyze():
         print(f"{DIM}PostgreSQL planner statistics updated and dead tuples reclaimed.{RESET}\n")
     except Exception as exc:
         print(f"{RED}❌ VACUUM ANALYZE failed: {exc}{RESET}\n")
-
 
 async def check_schema_migrations() -> dict:
     """Inspect current schema revision vs Alembic heads and report pending migrations."""
@@ -217,7 +206,6 @@ async def check_schema_migrations() -> dict:
         "is_up_to_date": (current_rev == head_rev) and (current_rev is not None),
     }
 
-
 async def show_schema_migrations():
     """Print formatted migration audit report."""
     print(f"\n{BOLD}═══════════════ ALEMBIC SCHEMA MIGRATION AUDIT ═══════════════{RESET}")
@@ -238,10 +226,6 @@ async def show_schema_migrations():
         print(f"\n {DIM}Run 'alembic upgrade head' to apply pending migrations.{RESET}")
     print(f"{BOLD}══════════════════════════════════════════════════════════════{RESET}\n")
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 2. REDIS & CACHE METRICS
-# ─────────────────────────────────────────────────────────────────────────────
 async def show_redis_metrics():
     """Inspect real-time hit/miss ratios and memory footprints from Redis."""
     print(f"\n{BOLD}═══════════════ REDIS & CACHE PERFORMANCE METRICS ═══════════════{RESET}")
@@ -281,7 +265,6 @@ async def show_redis_metrics():
     else:
         print(f"   {DIM}No persistent keys currently stored in Redis keyspace.{RESET}")
     print(f"{BOLD}═════════════════════════════════════════════════════════════════{RESET}\n")
-
 
 async def clear_city_cache(city: str):
     """Clear OSM places, photos, and weather cache for a city."""
@@ -324,7 +307,6 @@ async def clear_city_cache(city: str):
             await session.rollback()
             print(f"{RED}Failed to clear city cache: {exc}{RESET}")
 
-
 async def clear_all_redis():
     """Clear transient weather and session Redis caches."""
     try:
@@ -338,10 +320,6 @@ async def clear_all_redis():
     except Exception as exc:
         print(f"{RED}Redis cache clear error: {exc}{RESET}")
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 3. SUPERADMIN USER DIRECTORY (INTERACTIVE PAGINATION & RBAC)
-# ─────────────────────────────────────────────────────────────────────────────
 async def display_user_page(
     users: list[User],
     page: int,
@@ -372,7 +350,6 @@ async def display_user_page(
 
         print(f"{u.user_id:<15} {uname:<18} {role_badge:<21} {u.tokens:<8} {ban_badge:<17} {mute_badge:<17} {reg_date}")
     print("─" * 84)
-
 
 async def user_directory_interactive():
     """Interactive paginated browser for registered users with role and flag controls."""
@@ -447,7 +424,6 @@ async def user_directory_interactive():
         elif cmd in ("q", "quit", "exit"):
             break
 
-
 async def list_users_cli(limit: int = 15, page: int = 1, role_filter: Optional[str] = None):
     """Non-interactive CLI list of users."""
     offset = (page - 1) * limit
@@ -462,10 +438,6 @@ async def list_users_cli(limit: int = 15, page: int = 1, role_filter: Optional[s
     total_pages = max(1, (total_count + limit - 1) // limit)
     await display_user_page(users, page, total_pages, total_count, role_filter)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 4. USER MODERATION & GOVERNANCE ACTIONS
-# ─────────────────────────────────────────────────────────────────────────────
 async def ban_user(identifier: str, reason: str = ""):
     """Ban user in PostgreSQL and Redis."""
     async with AsyncSessionLocal() as session:
@@ -484,7 +456,6 @@ async def ban_user(identifier: str, reason: str = ""):
         reason_str = f" Reason: '{reason}'" if reason else ""
         print(f"{GREEN}Successfully BANNED user #{user.user_id} (@{user.username or 'none'}).{reason_str}{RESET}")
 
-
 async def unban_user(identifier: str):
     """Unban user in PostgreSQL and Redis."""
     async with AsyncSessionLocal() as session:
@@ -497,7 +468,6 @@ async def unban_user(identifier: str):
         await repo.set_ban_status(user.user_id, False)
         await redis_client.delete(RedisKeys.ban(user.user_id))
         print(f"{GREEN}Successfully UNBANNED user #{user.user_id} (@{user.username or 'none'}).{RESET}")
-
 
 async def mute_user(identifier: str, reason: str = ""):
     """Mute conversational privileges for user."""
@@ -517,7 +487,6 @@ async def mute_user(identifier: str, reason: str = ""):
         reason_str = f" Reason: '{reason}'" if reason else ""
         print(f"{GREEN}Successfully MUTED user #{user.user_id} (@{user.username or 'none'}).{reason_str}{RESET}")
 
-
 async def unmute_user(identifier: str):
     """Restore conversational privileges for user."""
     async with AsyncSessionLocal() as session:
@@ -530,7 +499,6 @@ async def unmute_user(identifier: str):
         await repo.set_mute_status(user.user_id, False)
         await redis_client.delete(RedisKeys.mute(user.user_id))
         print(f"{GREEN}Successfully UNMUTED user #{user.user_id} (@{user.username or 'none'}).{RESET}")
-
 
 async def toggle_user_ban(user_id: int):
     """Toggle ban status for target user ID."""
@@ -553,7 +521,6 @@ async def toggle_user_ban(user_id: int):
             await redis_client.delete(RedisKeys.ban(user_id))
             print(f"{GREEN}User #{user_id} is now UNBANNED.{RESET}")
 
-
 async def toggle_user_mute(user_id: int):
     """Toggle mute status for target user ID."""
     async with AsyncSessionLocal() as session:
@@ -575,7 +542,6 @@ async def toggle_user_mute(user_id: int):
             await redis_client.delete(RedisKeys.mute(user_id))
             print(f"{GREEN}User #{user_id} is now UNMUTED.{RESET}")
 
-
 async def promote_user(identifier: str | int):
     """Superadmin elevates user to ADMIN role."""
     async with AsyncSessionLocal() as session:
@@ -593,7 +559,6 @@ async def promote_user(identifier: str | int):
         await redis_client.set(f"admin_status:{user.user_id}", "admin")
         print(f"{GREEN}👑 Successfully PROMOTED #{user.user_id} (@{user.username or 'none'}) to ADMIN role.{RESET}")
 
-
 async def demote_user(identifier: str | int):
     """Superadmin strips administrative role from user."""
     async with AsyncSessionLocal() as session:
@@ -610,7 +575,6 @@ async def demote_user(identifier: str | int):
         await repo.set_role(user.user_id, role="USER", is_admin=False)
         await redis_client.set(f"admin_status:{user.user_id}", "user")
         print(f"{YELLOW}🔰 Successfully DEMOTED #{user.user_id} (@{user.username or 'none'}) to standard USER role.{RESET}")
-
 
 async def toggle_maintenance(target_state: Optional[str] = None):
     """Toggle or set maintenance mode in Redis."""
@@ -630,15 +594,10 @@ async def toggle_maintenance(target_state: Optional[str] = None):
     status_str = f"{RED}ENABLED (Admins Only){RESET}" if new_val == "1" else f"{GREEN}DISABLED (Normal Ops){RESET}"
     print(f"\nMaintenance mode set to: {status_str}")
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 5. REAL-TIME LATENCY DIAGNOSTICS (DB, REDIS, OSM MIRRORS)
-# ─────────────────────────────────────────────────────────────────────────────
 async def run_latency_diagnostics():
     """Measure round-trip latency to PostgreSQL, Redis, and public OSM upstream mirrors."""
     print(f"\n{BOLD}═══════════════ REAL-TIME ROUND-TRIP LATENCY DIAGNOSTICS ═══════════════{RESET}\n")
 
-    # 1. PostgreSQL Latency
     db_ms = None
     db_err = None
     t0 = time.perf_counter()
@@ -649,7 +608,6 @@ async def run_latency_diagnostics():
     except Exception as exc:
         db_err = str(exc).split("\n")[0]
 
-    # 2. Redis Latency
     redis_ms = None
     redis_err = None
     t0 = time.perf_counter()
@@ -699,10 +657,6 @@ async def run_latency_diagnostics():
 
     print(f"\n{BOLD}════════════════════════════════════════════════════════════════════════{RESET}\n")
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 6. BOURGEOIS & ARISTOCRATIC SATIRICAL EASTER EGGS
-# ─────────────────────────────────────────────────────────────────────────────
 async def execute_guillotine(identifier: str):
     """
     Satirical alias for banishing a user:
@@ -753,7 +707,6 @@ async def execute_guillotine(identifier: str):
   {BOLD}Vive la République, et que l'ordre règne sur le géoportail!{RESET}
 """)
 
-
 async def display_salon():
     """
     Displays an ornate ASCII rococo tea and champagne salon alongside witty
@@ -761,7 +714,6 @@ async def display_salon():
     """
     stats = await get_system_stats()
 
-    # Quick latency check for the dossier
     t0 = time.perf_counter()
     async with engine.connect() as conn:
         await conn.execute(text("SELECT 1;"))
@@ -772,7 +724,7 @@ async def display_salon():
     misses = int(redis_stats.get("keyspace_misses", 0))
     ratio = (hits / (hits + misses) * 100.0) if (hits + misses) > 0 else 100.0
 
-    print(f"""{YELLOW}{BOLD}
+    print(fr"""{YELLOW}{BOLD}
       ╔══════════════════════════════════════════════════════════════════════╗
       ║             🥂  LE SALON ROCOCO DE HAUTE TÉLÉMÉTRIE  ☕             ║
       ║         Dégustation Impériale · Champagne Brut & Grand Luxe          ║
@@ -800,10 +752,6 @@ async def display_salon():
   {DIM}Que Monsieur daigne poursuivre son règne sereinement sur le royaume numérique.{RESET}
 """)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 7. INTERACTIVE MENU & CLI MAIN
-# ─────────────────────────────────────────────────────────────────────────────
 async def interactive_menu(active_superadmin_id: int):
     """Interactive administrative loop."""
     print_banner(active_superadmin_id)
@@ -882,9 +830,7 @@ async def interactive_menu(active_superadmin_id: int):
         else:
             print(f"{RED}Invalid option. Please choose 0-14.{RESET}")
 
-
 async def main(args: list[str]):
-    # 1. Parse caller identity / mock auth flags
     clean_args = []
     caller_id = None
     mock_auth = os.getenv("MOCK_AUTH") == "1" or os.getenv("JARVIS_MOCK_AUTH") == "1"
@@ -914,7 +860,6 @@ async def main(args: list[str]):
         os.environ["JARVIS_MOCK_AUTH"] = "1"
         print(f"{YELLOW}🔓 [Mock Auth] Running with mock authentication enabled (--auth=0).{RESET}")
 
-    # 2. Strict RBAC enforcement: verify Superadmin access
     active_superadmin_id = verify_cli_access(caller_id)
 
     args = clean_args
@@ -1015,7 +960,6 @@ async def main(args: list[str]):
             await engine.dispose()
         except Exception:
             pass
-
 
 if __name__ == "__main__":
     asyncio.run(main(sys.argv[1:]))

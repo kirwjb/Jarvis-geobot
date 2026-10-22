@@ -1,22 +1,21 @@
-import { $, haptic } from './helpers.js?v=20261009002';
+import { $, haptic } from './helpers.js?v=20261017-010';
+import { ICONS } from './icons.js?v=20261017-010';
 
 const tg = window.Telegram?.WebApp;
 
-/** Sync Telegram's native styling variables to the active theme. */
 export function syncTelegramStylingVariables(light) {
   const root = document.documentElement;
-  // We rely on style.css for custom variables now. 
-  // Only override tg-theme vars if needed for fallback
+
   if (light) {
-    root.style.setProperty('--tg-theme-bg-color', '#f6f8fc');
-    root.style.setProperty('--tg-theme-text-color', '#12141a');
-    root.style.setProperty('--tg-theme-hint-color', '#6b7280');
-    root.style.setProperty('--tg-theme-link-color', '#2563eb');
-    root.style.setProperty('--tg-theme-button-color', '#2563eb');
+    root.style.setProperty('--tg-theme-bg-color', '#ffffff');
+    root.style.setProperty('--tg-theme-text-color', '#0f172a');
+    root.style.setProperty('--tg-theme-hint-color', '#64748b');
+    root.style.setProperty('--tg-theme-link-color', '#007aff');
+    root.style.setProperty('--tg-theme-button-color', '#007aff');
     root.style.setProperty('--tg-theme-button-text-color', '#ffffff');
-    root.style.setProperty('--tg-theme-secondary-bg-color', 'rgba(255,255,255,0.65)');
-    root.style.setProperty('--tg-theme-header-bg-color', '#f6f8fc');
-    root.style.setProperty('--tg-theme-bottom-bar-bg-color', '#f6f8fc');
+    root.style.setProperty('--tg-theme-secondary-bg-color', '#f8fafc');
+    root.style.setProperty('--tg-theme-header-bg-color', '#ffffff');
+    root.style.setProperty('--tg-theme-bottom-bar-bg-color', '#ffffff');
   } else {
     root.style.setProperty('--tg-theme-bg-color', '#0b0f17');
     root.style.setProperty('--tg-theme-text-color', '#f4f6fa');
@@ -30,7 +29,6 @@ export function syncTelegramStylingVariables(light) {
   }
 }
 
-/** Set the active application theme with CSS class toggles, Telegram variables, and accessibility labels. */
 export function applyTheme(theme, save = true) {
   const light = theme === 'light';
   document.documentElement.classList.toggle('light-theme', light);
@@ -39,11 +37,10 @@ export function applyTheme(theme, save = true) {
   document.body.classList.toggle('dark-theme', !light);
   document.documentElement.setAttribute('data-theme', light ? 'light' : 'dark');
 
-  // Sync Telegram's standard CSS variables on :root
   syncTelegramStylingVariables(light);
 
   const icon = $('#theme-icon');
-  if (icon) icon.textContent = light ? '☾' : '☀';
+  if (icon) icon.innerHTML = light ? ICONS.moon : ICONS.sun;
 
   const button = $('#theme-toggle');
   if (button) {
@@ -52,14 +49,12 @@ export function applyTheme(theme, save = true) {
     button.setAttribute('title', label);
   }
 
-  // Sync Telegram WebApp native top/bottom colors if running in Telegram
   try {
-    const bgColor = light ? '#f7f8fa' : '#0d0f14';
+    const bgColor = light ? '#ffffff' : '#0f141c';
     if (tg?.setHeaderColor) tg.setHeaderColor(bgColor);
     if (tg?.setBackgroundColor) tg.setBackgroundColor(bgColor);
   } catch (_) {}
 
-  // Update browser theme-color meta tag
   try {
     const metaThemeColor = document.querySelector('meta[name="theme-color"]');
     if (metaThemeColor) {
@@ -70,7 +65,6 @@ export function applyTheme(theme, save = true) {
   if (save) localStorage.setItem('jarvis-theme', light ? 'light' : 'dark');
 }
 
-/** Toggle between light and dark themes with haptic feedback. */
 export function toggleTheme() {
   const saved = localStorage.getItem('jarvis-theme');
   const isLight = saved !== null
@@ -80,12 +74,10 @@ export function toggleTheme() {
   haptic('light');
 }
 
-// Expose globally for backup inline event handlers
 if (typeof window !== 'undefined') {
   window.toggleTheme = toggleTheme;
 }
 
-/** Sync theme from Telegram colorScheme if user hasn't set an explicit preference. */
 export function syncTelegramTheme() {
   const saved = localStorage.getItem('jarvis-theme');
   if (!saved && tg?.colorScheme) {
@@ -93,7 +85,6 @@ export function syncTelegramTheme() {
   }
 }
 
-// Subscribe to Telegram theme changes if user hasn't overridden
 try {
   tg?.onEvent?.('themeChanged', () => {
     if (!localStorage.getItem('jarvis-theme')) {

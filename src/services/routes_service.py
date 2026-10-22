@@ -4,9 +4,7 @@ import asyncio
 from src.utils.utils import error
 from src.utils.API_codes import get_api_error_message
 
-
 OSRM_URL = "https://router.project-osrm.org/route/v1/driving"
-
 
 async def get_distance_osrm(
     lat1: float,
@@ -27,16 +25,11 @@ async def get_distance_osrm(
 
     try:
         try:
-            session_ctx = aiohttp.ClientSession(headers={"ngrok-skip-browser-warning": "true"})
+            session_ctx = aiohttp.ClientSession(headers={"ngrok-skip-browser-warning": "true"}, timeout=aiohttp.ClientTimeout(total=5))
         except TypeError:
             session_ctx = aiohttp.ClientSession()
         async with session_ctx as session:
-
-            async with session.get(
-                url,
-                params=params,
-                timeout=5,
-            ) as response:
+            async with session.get(url, params=params, timeout=5) as response:
 
                 if response.status != 200:
 

@@ -23,7 +23,6 @@ START_TEXT = """
 <i>Разработано <b>Кириллом Изотовым</b> (kirwjb@gmail.com)</i>
 """
 
-
 def _open_app_keyboard() -> types.InlineKeyboardMarkup:
     keyboard = types.InlineKeyboardMarkup(row_width=1)
     keyboard.add(
@@ -37,7 +36,6 @@ def _open_app_keyboard() -> types.InlineKeyboardMarkup:
         ),
     )
     return keyboard
-
 
 async def ensure_db_user(user_id: int, username: str | None) -> User:
     """Entry point to database: guarantees user exists in PostgreSQL."""
@@ -67,7 +65,6 @@ async def ensure_db_user(user_id: int, username: str | None) -> User:
             error(f"DB Entry error for user #{user_id}: {exc}")
             raise
 
-
 async def register_start_handlers(bot: AsyncTeleBot) -> None:
     """Register welcoming start/help handlers acting as DB entry points."""
 
@@ -78,7 +75,7 @@ async def register_start_handlers(bot: AsyncTeleBot) -> None:
         try:
             await ensure_db_user(user_id, username)
         except Exception:
-            pass  # Do not block welcome response if DB has a temporary glitch
+            pass
 
         await bot.send_message(
             chat_id=message.chat.id,

@@ -1,32 +1,100 @@
-import { state } from '../core/state.js?v=20261009002';
-import { $, haptic } from '../ui/helpers.js?v=20261009002';
-import { toggleTheme } from '../ui/theme.js?v=20261009002';
-import { toggleLanguage } from '../ui/language.js?v=20261009002';
-import { go, initTelegramBackButton, setTab } from '../core/router.js?v=20261009002';
-import { loadRegions, pickRegion, pickCity, toggleTag, filterRegions, filterCities, renderTags, startPlaces } from '../features/travel.js?v=20261009002';
-import { loadWeather } from '../features/weather.js?v=20261009002';
-import { loadPlaces, openDetail, loadPage, filterPlacesSearch, shufflePlaces, renderPlaces } from '../features/places.js?v=20261009002';
-import { loadFavorites, toggleFavorite, loadFavoritesScreen, favState } from '../features/favorites.js?v=20261009002';
-import { toggleRoute, updateFab, renderRoute, removeRoute, buildRoute, copyRoute, openRoute } from '../features/route.js?v=20261009002';
+import { state, tg } from '../core/state.js?v=20261017-010';
+import { $, haptic } from '../ui/helpers.js?v=20261017-010';
+import { toggleTheme } from '../ui/theme.js?v=20261017-010';
+import { toggleLanguage } from '../ui/language.js?v=20261017-010';
+import { go, initTelegramBackButton, setTab } from '../core/router.js?v=20261017-010';
+import { loadRegions, pickRegion, pickCity, toggleTag, filterRegions, filterCities, renderTags, startPlaces } from '../features/travel.js?v=20261017-010';
+import { loadWeather, selectWeatherCity, filterWeatherCities, closeWeatherDropdown, renderWeatherCityChips } from '../features/weather.js?v=20261017-010';
+import { loadPlaces, openDetail, loadPage, filterPlacesSearch, shufflePlaces, renderPlaces, researchSurroundings, reportPhoto, deletePhoto } from '../features/places.js?v=20261017-010';
+import { loadFavorites, toggleFavorite, loadFavoritesScreen, favState } from '../features/favorites.js?v=20261017-010';
+import { toggleRoute, updateFab, renderRoute, removeRoute, buildRoute, copyRoute, openRoute } from '../features/route.js?v=20261017-010';
+import { openLegalModal } from '../features/legal.js?v=20261017-010';
 
 let appEventsBound = false;
 
-/** Dispatch a delegated click to the feature that owns the requested action. */
+function handleTabSwitch(tab) {
+  if (tab === 'travel') {
+    state.mode = 'travel';
+    if (state.region && state.city && state.tags?.size > 0 && state.pois?.length > 0) {
+      go('cards');
+    } else if (state.region && state.city) {
+      renderTags();
+      go('tags');
+    } else if (state.region) {
+      go('cities');
+    } else {
+      go('regions');
+      loadRegions();
+    }
+    return;
+  }
+  if (tab === 'route') {
+    go('route');
+    renderRoute();
+    return;
+  }
+  if (tab === 'weather') {
+    state.mode = 'weather';
+    go('weather');
+    loadWeather();
+    return;
+  }
+  if (tab === 'favorites') {
+    go('favorites');
+    loadFavoritesScreen();
+    return;
+  }
+}
+
 function handleClick(event) {
+  const tabItem = event.target.closest('[data-tab]');
+  if (tabItem) {
+    event.preventDefault();
+    haptic('selection');
+    handleTabSwitch(tabItem.dataset.tab);
+    return;
+  }
+
+  if (!event.target.closest('#weather-city-search') && !event.target.closest('#weather-city-dropdown')) {
+    closeWeatherDropdown();
+  }
+
   const element = event.target.closest('[data-action]');
   if (!element || !document.body.contains(element)) return;
-  if (element.closest('.bottom-nav-item')) return;
   const action = element.dataset.action;
   if (action === 'theme') { event.preventDefault(); toggleTheme(); return; }
   if (action === 'language') { event.preventDefault(); toggleLanguage(); return; }
+  if (action === 'legal') { event.preventDefault(); haptic('selection'); openLegalModal(); return; }
   if (action === 'start') { event.preventDefault(); haptic('medium'); go('regions'); loadRegions(); return; }
-  if (action === 'back') { event.preventDefault(); haptic('light'); go(element.dataset.screen || 'regions'); return; }
+  if (action === 'back') {
+    event.preventDefault();
+    haptic('light');
+    if (state.screen === 'favorites') {
+      go(state.previousScreen && state.previousScreen !== 'favorites' ? state.previousScreen : 'splash');
+      return;
+    }
+    if (state.screen === 'weather') {
+      const fallback = (state.region && state.city && state.tags?.size > 0 && state.pois?.length > 0) ? 'cards'
+        : (state.region && state.city) ? 'tags'
+        : state.region ? 'cities' : 'splash';
+      const prev = state.previousScreen && state.previousScreen !== 'weather' ? state.previousScreen : fallback;
+      if (prev === 'cards' && (!state.tags?.size || !state.pois?.length)) {
+        go(state.region && state.city ? 'tags' : 'regions');
+        return;
+      }
+      go(prev);
+      return;
+    }
+    go(element.dataset.screen || 'regions');
+    return;
+  }
   if (action === 'region') { event.preventDefault(); haptic('selection'); pickRegion(element.dataset.id); return; }
   if (action === 'city') { event.preventDefault(); haptic('selection'); pickCity(element.dataset.city); return; }
   if (action === 'tag') { event.preventDefault(); haptic('selection'); toggleTag(element.dataset.id); return; }
   if (action === 'show-places') { event.preventDefault(); haptic('medium'); startPlaces(); return; }
-  if (action === 'choose-city') { event.preventDefault(); haptic('light'); state.mode = 'weather'; go('regions'); return; }
-  if (action === 'weather-refresh') { event.preventDefault(); haptic('light'); loadWeather(); return; }
+  if (action === 'choose-city') { event.preventDefault(); haptic('light'); state.mode = 'weather'; go('regions'); loadRegions(); return; }
+  if (action === 'weather-city') { event.preventDefault(); haptic('selection'); selectWeatherCity(element.dataset.city); return; }
+  if (action === 'weather-refresh') { event.preventDefault(); haptic('light'); loadWeather(state.weatherCity || state.city || 'Минск'); return; }
   if (action === 'page-prev' || action === 'page-next') { event.preventDefault(); haptic('selection'); loadPage(Number(element.dataset.page)); return; }
   if (action === 'fav-page-prev' || action === 'fav-page-next') { event.preventDefault(); haptic('selection'); loadFavoritesScreen(Number(element.dataset.page)); return; }
   if (action === 'shuffle-places') { event.preventDefault(); haptic('medium'); shufflePlaces(); return; }
@@ -39,42 +107,54 @@ function handleClick(event) {
   if (action === 'copy-route') { event.preventDefault(); haptic('success'); copyRoute(element.dataset.url); return; }
   if (action === 'close-modal') { event.preventDefault(); haptic('light'); element.closest('.jarvis-modal')?.remove(); return; }
   if (action === 'favorites') { event.preventDefault(); haptic('selection'); setTab('favorites'); go('favorites'); loadFavoritesScreen(); return; }
+  if (action === 'research-expand') { event.preventDefault(); haptic('medium'); researchSurroundings(); return; }
+  if (action === 'report-photo') { event.preventDefault(); event.stopPropagation(); haptic('medium'); reportPhoto(element.dataset.id); return; }
+  if (action === 'delete-photo' || action === 'block-photo') { event.preventDefault(); event.stopPropagation(); haptic('heavy'); deletePhoto(element.dataset.id, element.closest('.jarvis-modal')); return; }
 }
 
-/** Route search input changes to the respective features without creating feature-specific listeners. */
 function handleInput(event) {
   if (event.target.matches('#region-search')) filterRegions(event.target.value);
   if (event.target.matches('#city-search')) filterCities(event.target.value);
   if (event.target.matches('#poi-search')) filterPlacesSearch(event.target.value);
+  if (event.target.matches('#weather-city-search')) filterWeatherCities(event.target.value);
 }
 
-/** Install the single application-wide event delegation layer during bootstrap. */
+function handleKeydown(event) {
+  if (event.target.matches('#weather-city-search')) {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      const firstOption = document.querySelector('#weather-city-dropdown .weather-city-option');
+      if (firstOption && firstOption.dataset.city) {
+        selectWeatherCity(firstOption.dataset.city);
+      } else if (event.target.value.trim()) {
+        selectWeatherCity(event.target.value.trim());
+      }
+    } else if (event.key === 'Escape') {
+      closeWeatherDropdown();
+    }
+  }
+}
+
 export function bindAppEvents() {
   if (appEventsBound) return;
   appEventsBound = true;
 
   document.addEventListener('click', handleClick);
   document.addEventListener('input', handleInput);
+  document.addEventListener('keydown', handleKeydown);
 
-  $('#fab')?.addEventListener('click', () => { haptic('medium'); go('route'); renderRoute(); });
-  $('#bottom-nav')?.addEventListener('click', event => {
-    const item = event.target.closest('[data-tab]');
-    if (!item) return;
-    event.preventDefault();
-    haptic('selection');
-    if (state.screen === 'cards') return;
-    const tab = item.dataset.tab;
-    if (tab === 'travel') {
-      state.mode = 'travel';
-      setTab(tab);
-      go(state.region && state.city ? 'cards' : 'regions');
-      return;
-    }
-    if (tab === 'weather') { state.mode='weather'; setTab(tab); go(state.city && state.region ? 'weather' : 'regions'); if (state.city && state.region) loadWeather(); return; }
-    if (tab === 'favorites') { setTab(tab); go('favorites'); loadFavoritesScreen(); return; }
+  try {
+    tg?.MainButton?.hide?.();
+  } catch (_) {}
+  window.addEventListener('jarvis:weather', (event) => {
+    const city = event?.detail?.city || state.weatherCity || state.city || 'Минск';
+    loadWeather(city);
   });
-  window.addEventListener('jarvis:weather', loadWeather);
-  window.addEventListener('jarvis:language', () => { renderTags(); loadRegions(); });
+  window.addEventListener('jarvis:language', () => {
+    renderTags();
+    loadRegions();
+    renderWeatherCityChips();
+  });
   window.addEventListener('jarvis:route-changed', () => { if (state.screen === 'cards') renderPlaces(); });
   window.addEventListener('jarvis:favorites-changed', () => {
     loadFavorites();
@@ -84,5 +164,4 @@ export function bindAppEvents() {
   initTelegramBackButton();
 }
 
-/** Expose the floating route button updater to the bootstrap module. */
 export { updateFab };

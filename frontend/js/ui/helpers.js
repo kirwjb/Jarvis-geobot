@@ -32,7 +32,6 @@ export function hapticSelection() {
   } catch (_) {}
 }
 
-/** Unified haptic dispatcher with Telegram WebApp support and safe fallbacks. */
 export function haptic(type = 'light') {
   if (type === 'selection') {
     hapticSelection();

@@ -2,7 +2,6 @@ import pytest
 
 from src.services.map_service import build_google_maps_link
 
-
 def test_build_google_maps_link_two_points():
     points = [
         {
@@ -27,7 +26,6 @@ def test_build_google_maps_link_two_points():
     assert "origin=53.9%2C27.56" in result
     assert "destination=53.93%2C27.65" in result
     assert "waypoints=" not in result
-
 
 def test_build_google_maps_link_with_waypoints():
     points = [
@@ -59,7 +57,6 @@ def test_build_google_maps_link_with_waypoints():
     assert "waypoints=" in result
     assert "53.91%2C27.58" in result
 
-
 def test_build_google_maps_link_too_few_points():
     points = [
         {
@@ -73,7 +70,6 @@ def test_build_google_maps_link_too_few_points():
     result = build_google_maps_link(points)
 
     assert result is None
-
 
 def test_build_google_maps_link_empty_list():
     result = build_google_maps_link([])

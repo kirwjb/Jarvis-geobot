@@ -1,11 +1,9 @@
 from src.services.optimizer_service import optimizeRoutePoints
 
-
 def test_optimize_empty_list():
     result = optimizeRoutePoints([])
 
     assert result == []
-
 
 def test_optimize_single_point():
     points = [
@@ -21,7 +19,6 @@ def test_optimize_single_point():
 
     assert len(result) == 1
     assert result[0]["id"] == "p1"
-
 
 def test_optimize_two_points():
     points = [
@@ -44,7 +41,6 @@ def test_optimize_two_points():
     assert len(result) == 2
     assert result[0]["id"] == "p1"
     assert result[1]["id"] == "p2"
-
 
 def test_optimize_removes_invalid_points():
     points = [
@@ -77,7 +73,6 @@ def test_optimize_removes_invalid_points():
     assert len(result) == 2
     assert [point["id"] for point in result] == ["p1", "p2"]
 
-
 def test_optimize_removes_duplicate_coordinates():
     points = [
         {
@@ -104,7 +99,6 @@ def test_optimize_removes_duplicate_coordinates():
 
     assert len(result) == 2
     assert [point["id"] for point in result] == ["p1", "p2"]
-
 
 def test_optimize_keeps_all_valid_points():
     points = [
@@ -144,7 +138,6 @@ def test_optimize_keeps_all_valid_points():
         "p4",
     }
 
-
 def test_optimize_preserves_first_point():
     points = [
         {
@@ -170,7 +163,6 @@ def test_optimize_preserves_first_point():
     result = optimizeRoutePoints(points)
 
     assert result[0]["id"] == "start"
-
 
 def test_optimize_nearest_neighbor_order():
     points = [

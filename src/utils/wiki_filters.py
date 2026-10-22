@@ -1,6 +1,7 @@
 """Pure filtering and scoring helpers for Wikimedia image search."""
 
 import re
+import unicodedata
 
 BELARUS_BBOX = {"min_lat": 51.25, "max_lat": 56.17, "min_lon": 23.17, "max_lon": 32.77}
 BAD_EXTENSIONS = (".svg", ".pdf", ".djvu", ".tiff", ".tif", ".webm", ".ogv", ".mp4", ".mp3")
@@ -10,6 +11,223 @@ BAD_DESCRIPTION_WORDS = (
     "герб ", "герб:", "coat of arms", "flag of", "флаг ", "флаг:",
     "locator_map", "coat_of_arms", "flag_of"
 )
+
+ZERO_WIDTH_AND_INVISIBLE_RE = re.compile(r"[\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff\u00ad]")
+
+def clean_filter_text(text: str) -> str:
+    """Normalize unicode to NFKC and strip zero-width characters and invisible noise."""
+    if not text:
+        return ""
+    norm = unicodedata.normalize("NFKC", str(text))
+    return ZERO_WIDTH_AND_INVISIBLE_RE.sub("", norm).lower()
+
+# 1. Flag & Protest (BCHB, White-Red-White, protest symbolism)
+PROTEST_BCHB_PATTERNS = [
+    r"\bб[-.]?ч[-.]?б\b",
+    r"\bb[-.]?c[-.]?h[-.]?b\b",
+    r"\bбел[ао]?[- ]красно[- ]бел\w*",
+    r"\bбел[ао]?[- ]чырвона[- ]бел\w*",
+    r"\bwhite[- ]red[- ]white\b",
+    r"\bwrw\s+flag\w*\b",
+    r"\bжыве\s+беларусь\b",
+    r"\bживе\s+беларусь\b",
+    r"\bzhive\s+belarus\b",
+    r"\bzyve\s+belarus\b",
+    r"\blong\s+live\s+belarus\b",
+    r"\bзмагар\w*",
+    r"\bпротест\w*\s+(?:в|на)\s+беларус\w*",
+    r"\bпротест\w*\s+в\s+минск\w*",
+    r"\bпратэст\w*\s+(?:ў|у)\s+беларус\w*",
+    r"\bбелорусск\w*\s+протест\w*",
+    r"\bбеларуск\w*\s+пратэст\w*",
+    r"\bbelarusian\s+protest\w*",
+    r"\b2020\s+belarusian\s+protest\w*",
+    r"\bмарш\s+(?:единства|новой\s+беларуси|героев|свободы|народовластия|женский|пенсионеров|мудрости)\b",
+    r"\bженск\w*\s+марш\w*",
+    r"\bсвято[- ]владимирск\w*\s+лент\w*",
+    r"\bкоординационн\w*\s+совет\s+беларус\w*",
+]
+
+# 2. Russia / Ukraine contemporary military conflict, Z/V, SVO, military vehicles, slogans, conflict monuments
+MILITARY_CONFLICT_PATTERNS = [
+    r"\bсво\b",
+    r"\bв\s+зоне\s+сво\b",
+    r"\bгерои?\s+сво\b",
+    r"\bучастник\w*\s+сво\b",
+    r"\bспецопераци\w*",
+    r"\bspecial\s+military\s+operation\b",
+    r"\bденацификаци\w*",
+    r"\bдемилитаризаци\w*",
+    r"(?:\b|^|\s)[zZvVвВ]\s*[-_/]?\s*(?:символ\w*|знак\w*|symbol\w*|propaganda|patriot\w*|патриот\w*|операци\w*|арми\w*|войск\w*|войн\w*|za|zа|forces|military|vehicle|tank|armor|weapon|action)\b",
+    r"\b(?:символ|знак|буква|symbol)\s*[zZvVвВ]\b",
+    r"\b[zZvVвВ]\s+symbol\b",
+    r"\b[zZvVвВ][-_](?:army|forces|symbol|operation|propaganda|patriot|войска|знак|символ|армия)\b",
+    r"\bcategory\s*:\s*[zZvV]\s*\(",
+    r"\bza\s+наших\b|\bza\s+россию\b|\bza\s+мир\b|\bсилы\s+[zZvV]\b",
+    r"\bzov\b|\bz[- ]o[- ]v\b",
+    r"\bгойда\b",
+    r"\bслава\s+украин\w*",
+    r"\bгероям\s+слава\b",
+    r"\bslava\s+ukraini\b",
+    r"\bglory\s+to\s+ukraine\b",
+    r"\bбандер\w*",
+    r"\bbandera\b",
+    r"\bоун[- ]упа\b",
+    r"\boun[- ]upa\b",
+    r"\bазов\b",
+    r"\bazov\s+(?:regiment|battalion|brigade|movement)\b",
+    r"\bполк\s+азов\b",
+    r"\bбатальон\s+азов\b",
+    r"\bкракен\b",
+    r"\bkraken\s+(?:regiment|unit)\b",
+    r"\brusso[- ]ukrainian\s+war\b",
+    r"\bwar\s+in\s+ukraine\b",
+    r"\bukraine\s+war\b",
+    r"\brussian\s+invasion\s+of\s+ukraine\b",
+    r"\b(?:российско|русско)[- ]украинск\w*\s+(?:войн\w*|конфликт\w*)",
+    r"\bвойн\w*\s+(?:в|на|против|с)\s+украин\w*",
+    r"\bвойн\w*\s+росси\w*\s+против\s+украин\w*",
+    r"\bвоенн\w*\s+операци\w*\s+(?:в|на)\s+украин\w*",
+    r"\bвторжени\w*\s+(?:в|на)\s+украин\w*",
+    r"\bвторжени\w*\s+росси\w*",
+    r"\bроссийск\w*\s+агресси\w*",
+    r"\bагресси\w*\s+(?:росси\w*|рф)\s+против\s+украин\w*",
+    r"\bбоевые\s+действия\s+в\s+украин\w*",
+    r"\bвсу\b",
+    r"\bвооруженн\w*\s+сил\w*\s+украин\w*",
+    r"\bukrainian\s+armed\s+forces\b",
+    r"\barmed\s+forces\s+of\s+ukraine\b",
+    r"\bzsu\b",
+    r"\bвс\s+рф\b",
+    r"\bвооруженн\w*\s+сил\w*\s+рф\b",
+    r"\bвооруженн\w*\s+сил\w*\s+российской\s+федерации\b",
+    r"\bчвк\s+вагнер\w*",
+    r"\bwagner\s+group\b",
+    r"\bpmc\s+wagner\b",
+    r"\bднр\b|\bлнр\b|\bdpr\b|\blpr\b",
+    r"\bдонецк\w*\s+народн\w*\s+республик\w*",
+    r"\bluhansk\s+people'?s\s+republic\b",
+    r"\bdonetsk\s+people'?s\s+republic\b",
+    r"\bлуганск\w*\s+народн\w*\s+республик\w*",
+    r"\bноворосси\w*",
+    r"\bnovorossiya\b",
+    r"\bгеоргиевск\w*\s+лент\w*",
+    r"\bгвардейск\w*\s+лент\w*",
+    r"\bgeorgievskaya\s+ribbon\b",
+    r"\bst\.?\s*george\s+ribbon\b",
+    r"\bаннекси\w*\s+крым\w*",
+    r"\bоккупаци\w*\s+крым\w*",
+    r"\bannexation\s+of\s+crimea\b",
+    r"\bкрымск\w*\s+мост\w*\s+(?:взрыв\w*|теракт\w*|атак\w*|поврежден\w*|удар\w*)",
+    r"\bdestroyed\s+(?:russian|ukrainian)\s+tank\b",
+    r"\bподбит\w*\s+танк\w*",
+    r"\bвоенн\w*\s+техник\w*\s+сво\b",
+    r"\bпамятник\w*\s+героям\s+сво\b",
+    r"\bмемориал\w*\s+героям\s+сво\b",
+    r"\bпамятник\w*\s+погибшим\s+в\s+сво\b",
+    r"\bрусский\s+военный\s+корабль\b",
+]
+
+# 3. Nazi & Extremist Symbolism
+NAZI_EXTREMIST_PATTERNS = [
+    r"\bсвастик\w*",
+    r"\bswastika\b",
+    r"\bhakenkreuz\b",
+    r"\bnazi\w*",
+    r"\bнацист\w*",
+    r"\bнацизм\b",
+    r"\bфашизм\b",
+    r"\bфашист\w*",
+    r"\bfascism\b",
+    r"\bfascist\b",
+    r"\bthird\s+reich\b",
+    r"\bтрет\w*\s+рейх\w*",
+    r"\bdrittes\s+reich\b",
+    r"\b3rd\s+reich\b",
+    r"\b(?:waffen[- ])?ss\b",
+    r"\bваффен[- ]сс\b",
+    r"\btotenkopf\b",
+    r"\bмертв\w*\s+голов\w*",
+    r"\bмёртв\w*\s+голов\w*",
+    r"\bгитлер\w*",
+    r"\bhitler\w*",
+    r"\bадольф\s+гитлер\w*",
+    r"\badolf\s+hitler\b",
+    r"\bku\s+klux\s+klan\b",
+    r"\bку[- ]клукс[- ]клан\b",
+    r"\bнеонаци\w*",
+    r"\bneonazi\w*",
+    r"\bwhite\s+supremacy\b",
+    r"\bwhite\s+supremacist\w*",
+]
+
+# 4. Violence, Executions, Burials/Corpses, 18+/NSFW/Nudity
+VIOLENCE_NSFW_PATTERNS = [
+    r"\bexecution\b",
+    r"\bказн\w*",
+    r"\bрасстрел\w*",
+    r"\bповешени\w*",
+    r"\bmassacre\b",
+    r"\bмассов\w*\s+убийств\w*",
+    r"\bгеноцид\w*",
+    r"\blynching\b",
+    r"\bлинчевани\w*",
+    r"\bcorpse\w*",
+    r"\bтруп\w*",
+    r"\bdead\s+bod\w*",
+    r"\bhuman\s+remains\b",
+    r"\bостанк\w*\s+людей\b",
+    r"\bчереп\s+человека\b",
+    r"\bэксгумаци\w*",
+    r"\bexhumation\b",
+    r"\bmorgue\b",
+    r"\bморг\b",
+    r"\btorture\w*",
+    r"\bпытк\w*",
+    r"\bзахоронени\w*",
+    r"\bmass\s+grave\w*",
+    r"\bnsfw\b",
+    r"\b18\+\b",
+    r"\bnudity\b",
+    r"\bnude\b",
+    r"\bnaked\b",
+    r"\bобнаженн\w*",
+    r"\bобнажённ\w*",
+    r"\bнагот\w*",
+    r"\bпорно\w*",
+    r"\bporn\w*",
+    r"\berotic\w*",
+    r"\bэротик\w*",
+    r"\bэротическ\w*",
+    r"\bgenitals\b",
+    r"\bпенис\b",
+    r"\bвагин\w*",
+    r"\bсиськ\w*",
+    r"\bгрудь\s+обнаженн\w*",
+]
+
+ALL_BLOCKED_PATTERNS = [
+    re.compile(p, re.IGNORECASE)
+    for p in (
+        PROTEST_BCHB_PATTERNS
+        + MILITARY_CONFLICT_PATTERNS
+        + NAZI_EXTREMIST_PATTERNS
+        + VIOLENCE_NSFW_PATTERNS
+    )
+]
+
+def is_sensitive_or_blocked_content(text: str) -> bool:
+    """Check if the text contains unwanted, political, extremist, violent, or sensitive tokens."""
+    if not text:
+        return False
+    cleaned = clean_filter_text(text)
+    for pattern in ALL_BLOCKED_PATTERNS:
+        if pattern.search(cleaned):
+            return True
+    collapsed = re.sub(r"[-_.\s]+", "", cleaned)
+    if any(k in collapsed for k in ("бчб", "bchb", "zov", "ounupa")):
+        return True
+    return False
 
 CITY_SYNONYMS = {
     "минск": ("минск", "мінск", "minsk"),
@@ -128,7 +346,6 @@ TYPE_NOUNS = {
     "бібліятэка", "библиотека"
 }
 
-
 def normalize_text(value: str) -> str:
     """Normalize Wikimedia titles, descriptions and search terms."""
     if not value:
@@ -137,11 +354,9 @@ def normalize_text(value: str) -> str:
     value = re.sub(r"[^a-zа-яёіўґ0-9\s]", " ", value, flags=re.IGNORECASE)
     return re.sub(r"\s+", " ", value).strip()
 
-
 def translit(value: str) -> str:
     """Transliterate normalized Cyrillic text to Latin."""
     return normalize_text(value).translate(TRANSLIT_TABLE)
-
 
 def text_forms(value: str) -> set[str]:
     """Return normalized and transliterated forms for matching."""
@@ -153,7 +368,6 @@ def text_forms(value: str) -> set[str]:
     if transliterated:
         forms.add(transliterated)
     return forms
-
 
 def city_variants(city: str) -> list[str]:
     """Return normalized, transliterated and known synonym forms."""
@@ -171,14 +385,12 @@ def city_variants(city: str) -> list[str]:
             variants.update(normalized_synonyms)
     return [variant for variant in variants if variant]
 
-
 def is_in_belarus(lat: float, lon: float) -> bool:
     """Fast Belarus bounding-box check."""
     return (
         BELARUS_BBOX["min_lat"] <= lat <= BELARUS_BBOX["max_lat"]
         and BELARUS_BBOX["min_lon"] <= lon <= BELARUS_BBOX["max_lon"]
     )
-
 
 def distance_score(
     object_lat: float,
@@ -205,13 +417,13 @@ def distance_score(
         return 20
     return 0
 
-
 def is_valid_photo(info: dict, title: str = "") -> bool:
     """Check if the asset is a valid visual.
 
-    Softened validation:
+    Validation rules:
     - Rejects truly invalid non-visuals: missing URL, vector SVG, documents PDF/DJVU, video/audio.
     - Rejects pure maps, schemes, coats of arms, flags.
+    - Rejects sensitive, political, extremist, violent, and NSFW content (BCHB, Z/SVO/conflict, Nazi, etc.).
     - Only rejects dimensions if they are known AND strictly tiny (< 150px).
     - NEVER rejects non-Latin filenames (Cyrillic, Belarusian, etc.).
     - NEVER rejects paintings or museum exhibits here (they are handled as fallback candidates).
@@ -228,10 +440,20 @@ def is_valid_photo(info: dict, title: str = "") -> bool:
     metadata = info.get("extmetadata", {})
     description = str(
         metadata.get("ImageDescription", {}).get("value")
-        or metadata.get("ObjectName", {}).get("value")
+        or info.get("description")
         or ""
     ).lower()
-    if any(word in description for word in BAD_DESCRIPTION_WORDS):
+    object_name = str(metadata.get("ObjectName", {}).get("value") or "").lower()
+    artist = str(metadata.get("Artist", {}).get("value") or "").lower()
+    if any(word in description or word in object_name for word in BAD_DESCRIPTION_WORDS):
+        return False
+
+    categories = str(metadata.get("Categories", {}).get("value") or "").lower()
+    info_title = str(info.get("title") or "").lower()
+
+    # Strict check against political, extremist, violent, conflict and NSFW content
+    text_corpus = f"{norm_title} {info_title} {description} {object_name} {artist} {categories}"
+    if is_sensitive_or_blocked_content(text_corpus):
         return False
 
     try:
@@ -244,7 +466,6 @@ def is_valid_photo(info: dict, title: str = "") -> bool:
         return False
 
     return True
-
 
 def is_secondary_visual(info: dict, title: str = "") -> bool:
     """Detect whether the image is an exhibit, painting, artwork, or interior artifact.
@@ -272,7 +493,6 @@ def is_secondary_visual(info: dict, title: str = "") -> bool:
 
     return False
 
-
 def _stem_matches(w1: str, w2: str) -> bool:
     """Check if two words share a common stem or inflected prefix."""
     s1, s2 = normalize_text(w1), normalize_text(w2)
@@ -284,7 +504,6 @@ def _stem_matches(w1: str, w2: str) -> bool:
         return True
     return False
 
-
 def match_score(
     title: str,
     name: str,
@@ -292,10 +511,18 @@ def match_score(
     extra_words: str = "",
     metadata: dict | None = None,
 ) -> int:
-    """Score how strongly a Wikimedia file matches an OSM place.
+    if is_sensitive_or_blocked_content(title):
+        return 0
+    if metadata:
+        meta_text = str(
+            metadata.get("ImageDescription", {}).get("value")
+            or metadata.get("ObjectName", {}).get("value")
+            or metadata.get("Categories", {}).get("value")
+            or ""
+        )
+        if is_sensitive_or_blocked_content(meta_text):
+            return 0
 
-    Supports title forms, inflected stem matching, and metadata/description matching.
-    """
     title_forms = text_forms(title)
     name_forms = text_forms(name)
     if not title_forms or not name_forms:
@@ -303,13 +530,11 @@ def match_score(
 
     score = 0
 
-    # 1. Direct form containment
     for name_form in name_forms:
         for title_form in title_forms:
             if name_form and name_form in title_form:
                 score = max(score, 100)
 
-    # 2. Word matching with stem support
     clean_words = [
         word for word in normalize_text(name).split()
         if len(word) >= 3 and word not in STOP_WORDS and word not in NOISE_WORDS
@@ -338,7 +563,6 @@ def match_score(
         elif matched:
             score += 15
 
-    # 3. City bonus
     if any(
         form in title_form
         for variant in city_variants(city)
@@ -347,13 +571,11 @@ def match_score(
     ):
         score += 30
 
-    # 4. Extra type words bonus
     if extra_words:
         type_words = [word for word in normalize_text(extra_words).split() if len(word) >= 4]
         if any(form in title_form for word in type_words for form in text_forms(word) for title_form in title_forms):
             score += 15
 
-    # 5. Metadata / description evaluation
     if metadata and score < 50:
         desc = str(
             metadata.get("ImageDescription", {}).get("value")
@@ -371,7 +593,6 @@ def match_score(
             if desc_matched / len(clean_words) >= 0.5:
                 score = max(score, 45)
 
-    # Brest disambiguation check
     if normalize_text(city) in ("брест", "брэст"):
         title_text = " ".join(title_forms)
         belarus_markers = ("belarus", "беларус", "brest belarus", "brest region", "брестская область", "брэсцкая")
@@ -379,11 +600,6 @@ def match_score(
             score = min(score, 95)
 
     return score
-
-
-# ---------------------------------------------------------------------------
-# Cascading Query Normalizer
-# ---------------------------------------------------------------------------
 
 def be_to_ru(text: str) -> str:
     """Convert common Belarusian orthography patterns to Russian for search fallback."""
@@ -404,20 +620,15 @@ def be_to_ru(text: str) -> str:
     res = re.sub(r'\bкрэпасць\b', 'крепость', res)
     return res
 
-
 def clean_place_name(name: str) -> str:
     """Strip quotes, punctuation, initials and institutional noise words from a place name."""
     if not name:
         return ""
-    # Strip quotes, punctuation, brackets
     cleaned = PUNCT_RE.sub(" ", name)
-    # Strip initials (e.g. П. В., А. С., Я.)
     cleaned = INITIALS_RE.sub(" ", cleaned)
     tokens = [t.strip() for t in cleaned.split() if t.strip()]
-    # Remove noise / stop words
     meaningful = [t for t in tokens if t.lower() not in NOISE_WORDS and t.lower() not in STOP_WORDS]
     return " ".join(meaningful).strip()
-
 
 def extract_core_keywords(name: str) -> tuple[str | None, str | None]:
     """Extract object type noun and main proper noun/surname from a place name."""
@@ -450,7 +661,6 @@ def extract_core_keywords(name: str) -> tuple[str | None, str | None]:
     proper_name = " ".join(proper_tokens).strip() or None
     return type_word, proper_name
 
-
 def generate_cascading_queries(
     name: str,
     city: str,
@@ -478,7 +688,6 @@ def generate_cascading_queries(
     ru_proper = be_to_ru(proper_name) if proper_name else None
     ru_type = be_to_ru(type_word) if type_word else None
 
-    # Include explicit OSM multilingual names if available
     osm_names = []
     if osm_tags:
         for key in ("name:ru", "name:be", "name:en"):
@@ -495,7 +704,6 @@ def generate_cascading_queries(
         if q and q not in queries:
             queries.append(q)
 
-    # 1. Type + Proper Name + City (Belarusian / native)
     if type_word and proper_name:
         _add(f"{type_word} {proper_name} {be_city}")
         if ru_type and ru_proper:
@@ -504,20 +712,16 @@ def generate_cascading_queries(
         if ru_type and ru_proper:
             _add(f"{ru_type} {ru_proper}")
 
-    # 2. Clean Name + City
     _add(f"{clean_name} {be_city}")
     _add(f"{ru_name} {ru_city}")
 
-    # 3. OSM multilingual names
     for oname in osm_names:
         _add(f"{oname} {ru_city}")
         _add(oname)
 
-    # 4. Clean Name alone
     _add(clean_name)
     _add(ru_name)
 
-    # 5. Proper Name + City
     if proper_name:
         _add(f"{proper_name} {be_city}")
         if ru_proper:
@@ -526,14 +730,12 @@ def generate_cascading_queries(
         if ru_proper:
             _add(ru_proper)
 
-    # 6. Type words from category
     type_hint = TYPE_QUERY_WORDS.get(category.lower(), "")
     if type_hint and proper_name:
         first_type = type_hint.split()[0]
         _add(f"{proper_name} {first_type} {be_city}")
 
     return queries
-
 
 def generate_category_search_queries(
     name: str,

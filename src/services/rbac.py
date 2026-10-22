@@ -17,7 +17,6 @@ from enum import Enum
 from typing import Optional
 from src.config import SUPERADMINS, BOT_OWNER_ID
 
-
 class Role(str, Enum):
     USER = "USER"
     ADMIN = "ADMIN"
@@ -55,7 +54,6 @@ class Role(str, Enum):
     def __str__(self) -> str:
         return self.value
 
-
 def is_superadmin(user_id: int | str | None) -> bool:
     """Check if the given Telegram user ID is a configured Superadmin."""
     if user_id is None:
@@ -65,12 +63,7 @@ def is_superadmin(user_id: int | str | None) -> bool:
     except (ValueError, TypeError):
         return False
 
-    if uid in SUPERADMINS:
-        return True
-    if BOT_OWNER_ID is not None and uid == BOT_OWNER_ID:
-        return True
-    return False
-
+    return uid in SUPERADMINS
 
 def resolve_user_role(
     user_id: int | str,
@@ -86,26 +79,21 @@ def resolve_user_role(
         return Role.ADMIN
     return Role.USER
 
-
 def can_moderate(actor_role: Role) -> bool:
     """Check if role can execute in-chat moderation commands (/ban, /unban, /mute, etc.)."""
     return actor_role >= Role.ADMIN
-
 
 def can_govern(actor_role: Role) -> bool:
     """Check if role can execute governance commands (/promote, /demote, /maintenance)."""
     return actor_role == Role.SUPERADMIN
 
-
 def can_manage_cli(actor_role: Role) -> bool:
     """Check if role has rights to access CLI administration (./Jarvis -a)."""
     return actor_role == Role.SUPERADMIN
 
-
 def can_promote_or_demote(actor_role: Role) -> bool:
     """Check if role has authority to promote/demote users."""
     return actor_role == Role.SUPERADMIN
-
 
 def can_target_user(actor_role: Role, target_role: Role) -> bool:
     """
@@ -122,7 +110,6 @@ def can_target_user(actor_role: Role, target_role: Role) -> bool:
     if actor_role == Role.ADMIN:
         return target_role < Role.ADMIN
     return False
-
 
 def verify_cli_superadmin(caller_id: int | str | None = None) -> bool:
     """

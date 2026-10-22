@@ -33,7 +33,6 @@ from src.services.rbac import (
 from src.utils.redis_keys import RedisKeys
 from src.utils.utils import admin_logger
 
-
 async def _get_caller_role(user_id: int) -> Role:
     """Fetch effective role of the command caller."""
     if is_superadmin(user_id):
@@ -45,7 +44,6 @@ async def _get_caller_role(user_id: int) -> Role:
             return Role.USER
         return resolve_user_role(user.user_id, user.role, user.is_admin)
 
-
 def _parse_command_args(text: str) -> tuple[str, str]:
     """Split command text into (target_identifier, remaining_text)."""
     parts = text.strip().split(maxsplit=2)
@@ -53,14 +51,10 @@ def _parse_command_args(text: str) -> tuple[str, str]:
     remaining = parts[2].strip() if len(parts) > 2 else ""
     return target, remaining
 
-
 async def register_admin_handlers(bot: AsyncTeleBot, redis_client=None):
     """Register moderation and governance commands on the bot instance."""
     redis = redis_client or default_redis
 
-    # ─────────────────────────────────────────────────────────────
-    # MODERATION HELP / COMMAND DIRECTORY
-    # ─────────────────────────────────────────────────────────────
     @bot.message_handler(commands=["admin", "moderation", "admin_help"])
     async def cmd_admin_help(message: types.Message):
         caller_role = await _get_caller_role(message.from_user.id)
@@ -92,9 +86,6 @@ async def register_admin_handlers(bot: AsyncTeleBot, redis_client=None):
 
         await bot.reply_to(message, "\n".join(help_text), parse_mode="HTML")
 
-    # ─────────────────────────────────────────────────────────────
-    # BAN & UNBAN
-    # ─────────────────────────────────────────────────────────────
     @bot.message_handler(commands=["ban"])
     async def cmd_ban(message: types.Message):
         caller_role = await _get_caller_role(message.from_user.id)
@@ -168,9 +159,6 @@ async def register_admin_handlers(bot: AsyncTeleBot, redis_client=None):
                 parse_mode="HTML",
             )
 
-    # ─────────────────────────────────────────────────────────────
-    # MUTE & UNMUTE
-    # ─────────────────────────────────────────────────────────────
     @bot.message_handler(commands=["mute"])
     async def cmd_mute(message: types.Message):
         caller_role = await _get_caller_role(message.from_user.id)
@@ -244,9 +232,6 @@ async def register_admin_handlers(bot: AsyncTeleBot, redis_client=None):
                 parse_mode="HTML",
             )
 
-    # ─────────────────────────────────────────────────────────────
-    # USER INSPECTION
-    # ─────────────────────────────────────────────────────────────
     @bot.message_handler(commands=["user", "user_lookup"])
     async def cmd_user_inspect(message: types.Message):
         caller_role = await _get_caller_role(message.from_user.id)
@@ -290,9 +275,6 @@ async def register_admin_handlers(bot: AsyncTeleBot, redis_client=None):
             )
             await bot.reply_to(message, dossier, parse_mode="HTML")
 
-    # ─────────────────────────────────────────────────────────────
-    # BROADCAST WITH SAFE BATCHING
-    # ─────────────────────────────────────────────────────────────
     @bot.message_handler(commands=["broadcast"])
     async def cmd_broadcast(message: types.Message):
         caller_role = await _get_caller_role(message.from_user.id)
@@ -333,7 +315,6 @@ async def register_admin_handlers(bot: AsyncTeleBot, redis_client=None):
                     failed += 1
                 await asyncio.sleep(0.04)
 
-            # Brief breather between batches to strictly satisfy Telegram TPS limits
             if i + batch_size < total:
                 await asyncio.sleep(0.5)
 
@@ -348,9 +329,6 @@ async def register_admin_handlers(bot: AsyncTeleBot, redis_client=None):
             parse_mode="HTML",
         )
 
-    # ─────────────────────────────────────────────────────────────
-    # SUPERADMIN GOVERNANCE: PROMOTE & DEMOTE
-    # ─────────────────────────────────────────────────────────────
     @bot.message_handler(commands=["promote"])
     async def cmd_promote(message: types.Message):
         caller_role = await _get_caller_role(message.from_user.id)
@@ -425,9 +403,6 @@ async def register_admin_handlers(bot: AsyncTeleBot, redis_client=None):
                 parse_mode="HTML",
             )
 
-    # ─────────────────────────────────────────────────────────────
-    # SUPERADMIN GOVERNANCE: MAINTENANCE
-    # ─────────────────────────────────────────────────────────────
     @bot.message_handler(commands=["maintenance"])
     async def cmd_maintenance(message: types.Message):
         caller_role = await _get_caller_role(message.from_user.id)

@@ -1,5 +1,5 @@
 import math
-from src.utils.utils import log, error, logger
+from src.utils.utils import logger
 
 def _isValidPoint(point: dict) -> bool:
     lat = point.get('lat')
@@ -24,31 +24,40 @@ def _dedupePoints(routePoints: list) -> list:
         result.append(point)
     return result
 
-def _routeDistance(route: list) -> float:
-    total = 0.0
-    for i in range(len(route) - 1):
-        lat1, lon1 = float(route[i]['lat']), float(route[i]['lon'])
-        lat2, lon2 = float(route[i + 1]['lat']), float(route[i + 1]['lon'])
-        total += math.sqrt((lat2 - lat1) ** 2 + (lon2 - lon1) ** 2)
-    return total
-
 def _twoOptImprove(route: list) -> list:
     if len(route) < 4:
         return route
 
+    coords = [(float(p['lat']), float(p['lon'])) for p in route]
     improved = True
-    best = route
+    best = list(route)
+
     while improved:
         improved = False
-        bestDistance = _routeDistance(best)
-        for i in range(1, len(best) - 2):
-            for j in range(i + 1, len(best) - 1):
-                candidate = best[:i] + best[i:j + 1][::-1] + best[j + 1:]
-                candidateDistance = _routeDistance(candidate)
-                if candidateDistance < bestDistance - 1e-9:
-                    best = candidate
-                    bestDistance = candidateDistance
+        n = len(best)
+        for i in range(1, n - 2):
+            for j in range(i + 1, n - 1):
+                p_prev = coords[i - 1]
+                p_i = coords[i]
+                p_j = coords[j]
+                p_next = coords[j + 1]
+
+                current_dist = (
+                    math.hypot(p_i[0] - p_prev[0], p_i[1] - p_prev[1])
+                    + math.hypot(p_next[0] - p_j[0], p_next[1] - p_j[1])
+                )
+                new_dist = (
+                    math.hypot(p_j[0] - p_prev[0], p_j[1] - p_prev[1])
+                    + math.hypot(p_next[0] - p_i[0], p_next[1] - p_i[1])
+                )
+
+                if new_dist < current_dist - 1e-9:
+                    best[i : j + 1] = reversed(best[i : j + 1])
+                    coords[i : j + 1] = reversed(coords[i : j + 1])
                     improved = True
+                    break
+            if improved:
+                break
     return best
 
 def optimizeRoutePoints(routePoints: list) -> list:
@@ -62,39 +71,23 @@ def optimizeRoutePoints(routePoints: list) -> list:
     if len(validPoints) <= 2:
         return validPoints
 
-    unvisitedPoints = list(validPoints)
-    optimizedRoute = []
-    
-    currentPoint = unvisitedPoints.pop(0)
-    optimizedRoute.append(currentPoint)
-    
-    while unvisitedPoints:
-        closestPoint = None
-        minDistance = float('inf')
-        closestIndex = -1
-        
-        currentLat = float(currentPoint['lat'])
-        currentLon = float(currentPoint['lon'])
-        
-        for idx, targetPoint in enumerate(unvisitedPoints):
-            targetLat = float(targetPoint['lat'])
-            targetLon = float(targetPoint['lon'])
- 
-            distance = math.sqrt((targetLat - currentLat) ** 2 + (targetLon - currentLon) ** 2)
-            
-            if distance < minDistance:
-                minDistance = distance
-                closestPoint = targetPoint
-                closestIndex = idx
-                
-        if closestPoint is not None:
-            currentPoint = unvisitedPoints.pop(closestIndex)
-            optimizedRoute.append(currentPoint)
-        else:
-            logger.warning("Не удалось найти ближайшую точку. Прерывание оптимизации маршрута.")
-            break
+    unvisited = [(float(p['lat']), float(p['lon']), p) for p in validPoints]
+    currentLat, currentLon, currentPoint = unvisited.pop(0)
+    optimizedRoute = [currentPoint]
+
+    while unvisited:
+        best_idx = 0
+        min_sq = float('inf')
+
+        for idx, (tLat, tLon, _) in enumerate(unvisited):
+            d_sq = (tLat - currentLat) ** 2 + (tLon - currentLon) ** 2
+            if d_sq < min_sq:
+                min_sq = d_sq
+                best_idx = idx
+
+        currentLat, currentLon, currentPoint = unvisited.pop(best_idx)
+        optimizedRoute.append(currentPoint)
 
     optimizedRoute = _twoOptImprove(optimizedRoute)
-
     logger.info(f"Маршрут оптимизирован: исходных точек {len(routePoints)}, отсортировано {len(optimizedRoute)}")
     return optimizedRoute

@@ -3,7 +3,6 @@ from types import SimpleNamespace
 
 from src.routers import api_integrated
 
-
 class FakeResult:
     def __init__(self, places):
         self.places = places
@@ -13,7 +12,6 @@ class FakeResult:
 
     def all(self):
         return self.places
-
 
 class FakeSession:
     def __init__(self, places):
@@ -28,14 +26,12 @@ class FakeSession:
     async def execute(self, query):
         return FakeResult(self.places)
 
-
 class FakeSessionFactory:
     def __init__(self, places):
         self.places = places
 
     def __call__(self):
         return FakeSession(self.places)
-
 
 def make_place(
     place_id,
@@ -55,7 +51,6 @@ def make_place(
         hours=None,
         phone=None,
     )
-
 
 @pytest.mark.asyncio
 async def test_build_route_success(monkeypatch):
@@ -112,7 +107,6 @@ async def test_build_route_success(monkeypatch):
     assert result.total_distance_km == 2.5
     assert result.optimized is True
 
-
 @pytest.mark.asyncio
 async def test_build_route_osrm_failure_returns_none_distance(
     monkeypatch,
@@ -168,11 +162,9 @@ async def test_build_route_osrm_failure_returns_none_distance(
     assert result.poi_ids == ["p1", "p2"]
     assert result.google_maps_url == "https://maps.example/route"
 
-    # Главное: никакого фейкового расстояния.
     assert result.total_distance_km is None
 
     assert result.optimized is True
-
 
 @pytest.mark.asyncio
 async def test_build_route_requires_two_points():
@@ -185,7 +177,6 @@ async def test_build_route_requires_two_points():
         await api_integrated.build_route(request)
 
     assert exc_info.value.status_code == 400
-
 
 @pytest.mark.asyncio
 async def test_build_route_requires_two_unique_points(

@@ -11,13 +11,14 @@ from typing import Any
 
 import aiohttp
 
+from src.utils.wiki_filters import is_sensitive_or_blocked_content
+
 API_URL = "https://commons.wikimedia.org/w/api.php"
 USER_AGENT = "JARVIS-GEO-APP/2.0 (Wikimedia Commons geosearch; contact: kirwjb@gmail.com)"
 MIN_DISTANCE_M = 0.0
 DEFAULT_SEARCH_RADIUS_M = 300
 MAX_SEARCH_RADIUS_M = 600
 MAX_RESULTS = 25
-
 
 def _distance_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """Return great-circle distance between two WGS84 coordinates in metres."""
@@ -28,7 +29,6 @@ def _distance_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
     return 2 * radius * math.asin(math.sqrt(a))
 
-
 def _image_info(page: dict[str, Any], distance_m: float) -> dict[str, Any] | None:
     """Convert a Commons file page into the URL-only API representation."""
     info = (page.get("imageinfo") or [None])[0]
@@ -37,19 +37,24 @@ def _image_info(page: dict[str, Any], distance_m: float) -> dict[str, Any] | Non
     if not str(info.get("mime") or "").startswith("image/"):
         return None
 
-    # Filter out SVG icons, maps, and coat of arms if identifiable
     title = str(page.get("title", "")).lower()
     if any(ext in title for ext in (".svg", "coat_of_arms", "flag_of", "map_", "locator")):
         return None
 
     metadata = info.get("extmetadata") or {}
+    description = str(metadata.get("ImageDescription", {}).get("value") or "").lower()
+    object_name = str(metadata.get("ObjectName", {}).get("value") or "").lower()
+    artist_val = str((metadata.get("Artist") or {}).get("value") or "").lower()
+    categories = str(metadata.get("Categories", {}).get("value") or "").lower()
+    if is_sensitive_or_blocked_content(f"{title} {description} {object_name} {artist_val} {categories}"):
+        return None
+
     artist = metadata.get("Artist") or {}
     license_name = metadata.get("LicenseShortName") or {}
 
     raw_url = str(info["url"])
     raw_thumb = str(info.get("thumburl") or raw_url)
 
-    # Force HTTPS to prevent mixed content errors over ngrok
     if raw_url.startswith("http://"):
         raw_url = "https://" + raw_url[7:]
     if raw_thumb.startswith("http://"):
@@ -64,7 +69,6 @@ def _image_info(page: dict[str, Any], distance_m: float) -> dict[str, Any] | Non
         "title": page.get("title", ""),
         "distance_m": round(distance_m, 2),
     }
-
 
 async def find_photo_by_coordinates(
     lat: float,

@@ -1,4 +1,4 @@
-/* Interaction contract: only controls are clickable; layout/text never create hit targets. */
+
 html, body {
   cursor: default !important;
   -webkit-user-select: none;
@@ -20,13 +20,13 @@ button, a, [role=button] {
   transition: transform 0.14s cubic-bezier(0.2, 0.8, 0.4, 1), opacity 0.15s ease;
 }
 
-/* Micro-interaction tactile feedback */
 button:active:not(:disabled), [role=button]:active:not(:disabled) {
   transform: scale(0.97);
 }
 
+button.bottom-nav-item:active,
 .bottom-nav-item:active {
-  transform: scale(0.94);
+  transform: scale(0.92);
 }
 
 .screen {

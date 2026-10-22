@@ -8,19 +8,15 @@ env_path = BASE_DIR / '.env'
 
 load_dotenv(dotenv_path=env_path)
 
-
 raw_token = os.getenv("BOT_TOKEN") or os.getenv("TOKEN")
 
 if not raw_token:
     raise ValueError(f"❌ Ошибка: Токен бота не найден в {env_path}")
 
-
 TOKEN = raw_token.strip().strip("'\"")
-
 
 masked_token = f"{TOKEN[:6]}...{TOKEN[-4:]}" if len(TOKEN) > 10 else "Слишком короткий"
 info(f"ℹ️ [Config] Успешно загружен токен (длина: {len(TOKEN)}, маска: {masked_token})")
-
 
 DB_USER = os.getenv("DB_USER", "postgres")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "password")
@@ -30,7 +26,6 @@ DB_NAME = os.getenv("DB_NAME", "jarvis_db")
 
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
-
 
 nominatim_raw = os.getenv("NOMINATIM_URLS", "")
 if nominatim_raw:

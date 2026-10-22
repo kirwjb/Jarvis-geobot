@@ -21,6 +21,5 @@ class SessionManager:
     async def delete_user_session(self, user_id: int):
         await self.redis.delete(f"user_session:{user_id}")
 
-
 redis_client = Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
 user_sessions = SessionManager(redis_client)

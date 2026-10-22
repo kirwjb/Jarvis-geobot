@@ -3,34 +3,166 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-<meta name="theme-color" content="#0c0c0e">
+<meta name="theme-color" content="#0f141c">
 <meta name="referrer" content="no-referrer">
 <title>JARVIS GEO-APP</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link rel="stylesheet" href="/css/style.css?v=20261009-003">
-<link rel="stylesheet" href="/css/components.css?v=20261009-003">
-<link rel="stylesheet" href="/css/interactions.css?v=20261009-003">
-<link rel="stylesheet" href="/css/weather.css?v=20261009-003">
-<link rel="icon" type="image/svg+xml" href="/logo.svg?v=20261009-003">
+<link rel="stylesheet" href="/css/tokens.css?v=20261017-010">
+<link rel="stylesheet" href="/css/typography.css?v=20261017-010">
+<link rel="stylesheet" href="/css/liquid_glass.css?v=20261017-010">
+<link rel="stylesheet" href="/css/style.css?v=20261017-010">
+<link rel="stylesheet" href="/css/components.css?v=20261017-010">
+<link rel="stylesheet" href="/css/interactions.css?v=20261017-010">
+<link rel="stylesheet" href="/css/weather.css?v=20261017-010">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg?v=20261013-001">
 </head>
 <body>
 <header class="top-controls" id="top-controls">
-  <button class="top-control theme-control" id="theme-toggle" type="button" data-action="theme" aria-label="Тема"><span id="theme-icon">☀</span></button>
-  <button class="top-control language-control" id="language-toggle" type="button" data-action="language" aria-label="Язык"><span id="language-flag">🇷🇺</span><span id="language-code">RU</span></button>
+  <button class="top-control legal-control" id="legal-toggle" type="button" data-action="legal" aria-label="Прававая інфармацыя">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg>
+  </button>
+  <button class="top-control theme-control" id="theme-toggle" type="button" data-action="theme" aria-label="Тема"><span id="theme-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.07" y2="4.93"/></svg></span></button>
+  <button class="top-control language-control" id="language-toggle" type="button" data-action="language" aria-label="Язык">
+    <span id="language-flag">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+    </span>
+    <span id="language-code">RU</span>
+  </button>
 </header>
 <main>
-<section class="screen active" id="splash"><div class="splash-wrap"><img class="logo" src="/logo.svg?v=20261009-003" alt="JARVIS" style="width:350px!important;height:350px!important;max-width:350px!important;max-height:350px!important;object-fit:contain"><h1 data-i18n="start_title">Путешествуй по Беларуси</h1><p data-i18n="start_subtitle">Достопримечательности, маршруты и погода</p><button class="btn-main" id="start-travel" type="button" data-action="start" data-i18n="start">Начать путешествие</button></div></section>
-<section class="screen" id="regions"><div class="topbar"><h2 data-i18n="region">Выберите регион</h2><span class="step">1/4</span></div><input id="region-search" class="search" type="search" data-i18n-placeholder="region_search" placeholder="Поиск региона..."><div class="grid" id="regions-grid"></div></section>
-<section class="screen" id="cities"><button class="back" type="button" data-action="back" data-screen="regions">← <span data-i18n="back">Назад</span></button><div class="topbar"><h2 id="region-title">Область</h2><span class="step">2/4</span></div><input id="city-search" class="search" type="search" data-i18n-placeholder="city_search" placeholder="Поиск города..."><div class="grid" id="cities-grid"></div></section>
-<section class="screen" id="weather"><div class="topbar"><h2 data-i18n="weather">Погода</h2></div><div id="weather-empty" class="weather-empty"><div class="weather-empty-icon">☀️</div><h3 data-i18n="weather_title">Погода по городу</h3><p data-i18n="weather_empty">Сначала выберите город в разделе «Путешествия»</p><button class="btn-main" type="button" data-action="choose-city" data-i18n="choose_city">Выбрать город</button></div><div id="weather-box" style="display:none"></div></section>
-<section class="screen" id="tags"><button class="back" type="button" data-action="back" data-screen="cities">← <span data-i18n="back">Назад</span></button><div class="topbar"><h2 data-i18n="interests">Интересы</h2><span class="step">3/4</span></div><p class="hint" data-i18n="interests_hint">Можно выбрать несколько категорий</p><div class="tags" id="tags-list"></div><button class="btn-main" id="btn-tags" type="button" data-action="show-places" disabled data-i18n="show_places">Показать места</button></section>
-<section class="screen" id="cards"><button class="back" type="button" data-action="back" data-screen="tags">← <span data-i18n="back">Назад</span></button><div class="topbar"><h2 id="cards-title" data-i18n="places">Места</h2></div><div class="poi-tools"><input id="poi-search" class="search poi-search-input" type="search" placeholder="Поиск мест..." data-i18n-placeholder="poi_search"><button class="poi-shuffle-btn" id="poi-shuffle" type="button" data-action="shuffle-places" title="Перемешать" aria-label="Перемешать">🔀 <span data-i18n="shuffle">Перемешать</span></button></div><div class="feed" id="feed"></div><div id="poi-pagination" class="poi-pagination"></div></section>
-<section class="screen" id="route"><button class="back" type="button" data-action="back" data-screen="cards">← <span data-i18n="back">Назад</span></button><div class="topbar"><h2 data-i18n="route">Мой маршрут</h2></div><div id="route-list"></div><button class="btn-route" id="btn-build" type="button" data-action="build-route" disabled data-i18n="build_route">Построить маршрут</button></section>
-<section class="screen" id="favorites"><button class="back" type="button" data-action="back" data-screen="splash">← <span data-i18n="back">Назад</span></button><div class="topbar"><h2 data-i18n="favorites">Избранное</h2></div><div class="feed" id="favorites-list"></div><div id="fav-pagination" class="poi-pagination"></div></section>
+<section class="screen active" id="splash">
+  <div class="splash-castle-bg" aria-hidden="true">
+    <img class="splash-castle-img" src="/mir_castle.webp?v=20261021-001" alt="">
+    <div class="splash-castle-overlay"></div>
+  </div>
+  <div class="splash-wrap">
+    <img class="logo" src="/logo.svg?v=20261013-001" alt="JARVIS">
+    <h1 data-i18n="start_title">Путешествуй по Беларуси</h1>
+    <p data-i18n="start_subtitle">Достопримечательности, маршруты и погода</p>
+    <button class="btn-main" id="start-travel" type="button" data-action="start" data-i18n="start">Начать путешествие</button>
+    <button class="legal-badge-btn" type="button" data-action="legal">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg>
+      <span data-i18n="legal">Прававая інфармацыя</span>
+    </button>
+  </div>
+</section>
+<section class="screen" id="regions">
+  <div class="topbar"><h2 data-i18n="region">Выберите регион</h2><span class="step">1/4</span></div>
+  <input id="region-search" class="search" type="search" data-i18n-placeholder="region_search" placeholder="Поиск региона...">
+  <div class="grid" id="regions-grid"></div>
+</section>
+<section class="screen" id="cities">
+  <button class="back" type="button" data-action="back" data-screen="regions">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+    <span data-i18n="back">Назад</span>
+  </button>
+  <div class="topbar"><h2 id="region-title">Область</h2><span class="step">2/4</span></div>
+  <input id="city-search" class="search" type="search" data-i18n-placeholder="city_search" placeholder="Поиск города...">
+  <div class="grid" id="cities-grid"></div>
+</section>
+<section class="screen" id="weather">
+  <div class="topbar"><h2 data-i18n="weather">Погода</h2></div>
+  <div class="weather-picker-panel">
+    <div class="weather-search-row">
+      <input id="weather-city-search" class="search weather-city-input" type="search" placeholder="Поиск города..." data-i18n-placeholder="city_search" autocomplete="off">
+      <div id="weather-city-dropdown" class="weather-city-dropdown" style="display:none;"></div>
+    </div>
+    <div class="weather-chips-scroll">
+      <div class="weather-chips" id="weather-chips" role="group" aria-label="Популярные города"></div>
+    </div>
+  </div>
+  <div id="weather-box" style="display:none"></div>
+  <div id="weather-empty" class="weather-empty" style="display:none">
+    <div class="weather-empty-icon">
+      <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+    </div>
+    <h3 data-i18n="weather_title">Погода по городу</h3>
+    <p data-i18n="weather_empty">Выберите город выше или воспользуйтесь поиском</p>
+    <button class="btn-main" type="button" data-action="choose-city" data-i18n="choose_city">Выбрать город</button>
+  </div>
+</section>
+<section class="screen" id="tags">
+  <button class="back" type="button" data-action="back" data-screen="cities">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+    <span data-i18n="back">Назад</span>
+  </button>
+  <header class="topbar">
+    <h2 data-i18n="interests">Интересы</h2>
+    <span class="step tabular-nums" aria-label="3/4">3/4</span>
+  </header>
+  <section class="card-glass" style="padding: 18px 16px; margin-bottom: 24px;">
+    <header style="margin-bottom: 14px;">
+      <p class="hint type-body-secondary" data-i18n="interests_hint" style="margin: 0; font-size: 13.5px; line-height: 1.4; color: var(--text-secondary);">Можно выбрать несколько категорий</p>
+    </header>
+    <div class="tags" id="tags-list" role="group" aria-label="Катэгорыі" style="margin-bottom: 0;"></div>
+  </section>
+  <footer class="action-footer" style="display: flex; justify-content: center; margin-top: 8px;">
+    <button class="btn-main" id="btn-tags" type="button" data-action="show-places" disabled data-i18n="show_places">Показать места</button>
+  </footer>
+</section>
+<section class="screen" id="cards">
+  <button class="back" type="button" data-action="back" data-screen="tags">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+    <span data-i18n="back">Назад</span>
+  </button>
+  <div class="topbar"><h2 id="cards-title" data-i18n="places">Места</h2></div>
+  <div class="poi-tools">
+    <input id="poi-search" class="search poi-search-input" type="search" placeholder="Поиск мест..." data-i18n-placeholder="poi_search">
+    <button class="poi-shuffle-btn" id="poi-shuffle" type="button" data-action="shuffle-places" title="Перемешать" aria-label="Перемешать">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
+      <span data-i18n="shuffle">Перемешать</span>
+    </button>
+  </div>
+  <div class="feed" id="feed"></div>
+  <div id="poi-pagination" class="poi-pagination"></div>
+</section>
+<section class="screen" id="route">
+  <button class="back" type="button" data-action="back" data-screen="cards">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+    <span data-i18n="back">Назад</span>
+  </button>
+  <div class="topbar"><h2 data-i18n="my_route">Мой маршрут</h2></div>
+  <div id="route-list"></div>
+  <button class="btn-route" id="btn-build" type="button" data-action="build-route" disabled data-i18n="build_route">Построить маршрут</button>
+</section>
+<section class="screen" id="favorites">
+  <button class="back" type="button" data-action="back" data-screen="splash">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+    <span data-i18n="back">Назад</span>
+  </button>
+  <div class="topbar"><h2 data-i18n="favorites">Избранное</h2></div>
+  <div class="feed" id="favorites-list"></div>
+  <div id="fav-pagination" class="poi-pagination"></div>
+</section>
 </main>
-<button class="fab hidden" id="fab" type="button">🗺 <span data-i18n="route_add">Маршрут</span> <span id="fab-count">0</span></button>
-<nav class="bottom-nav" id="bottom-nav"><button class="bottom-nav-item active" type="button" data-tab="travel"><span>🧭</span><span data-i18n="travel">Путешествия</span></button><button class="bottom-nav-item" type="button" data-tab="weather"><span>☀️</span><span data-i18n="weather">Погода</span></button><button class="bottom-nav-item" type="button" data-action="favorites" data-tab="favorites"><span>♡</span><span data-i18n="favorites">Избранное</span></button></nav>
+<nav class="bottom-nav" id="bottom-nav" style="display: none;">
+  <button class="bottom-nav-item active" type="button" data-tab="travel" data-action="tab-travel">
+    <span class="bottom-nav-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
+    </span>
+    <span class="bottom-nav-label" data-i18n="travel">Путешествия</span>
+  </button>
+  <button class="bottom-nav-item" type="button" data-tab="route" data-action="tab-route">
+    <span class="bottom-nav-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>
+      <span class="bottom-nav-badge" id="route-badge" style="display:none">0</span>
+    </span>
+    <span class="bottom-nav-label" data-i18n="route">Маршрут</span>
+  </button>
+  <button class="bottom-nav-item" type="button" data-tab="weather" data-action="tab-weather">
+    <span class="bottom-nav-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.07" y2="4.93"/></svg>
+    </span>
+    <span class="bottom-nav-label" data-i18n="weather">Погода</span>
+  </button>
+  <button class="bottom-nav-item" type="button" data-tab="favorites" data-action="tab-favorites">
+    <span class="bottom-nav-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+    </span>
+    <span class="bottom-nav-label" data-i18n="favorites">Избранное</span>
+  </button>
+</nav>
 <div class="toast" id="toast"></div>
-<script type="module" src="/js/main.js?v=20261009-003"></script>
+<script type="module" src="/js/main.js?v=20261017-010"></script>
 </body>
 </html>

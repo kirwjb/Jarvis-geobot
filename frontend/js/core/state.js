@@ -10,6 +10,7 @@ export const state = {
   mode: saved.mode || 'travel',
   region: saved.region || null,
   city: saved.city || null,
+  weatherCity: saved.weatherCity || saved.city || 'Минск',
   tags: new Set(saved.tags || []),
   favs: new Set((saved.favs || []).map(String)),
   route: Array.isArray(saved.route) ? saved.route : [],
@@ -29,6 +30,7 @@ export function persist() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       mode: state.mode, region: state.region, city: state.city,
+      weatherCity: state.weatherCity,
       tags: [...state.tags], favs: [...state.favs], route: state.route,
       screen: state.screen
     }));

@@ -1,4 +1,4 @@
-import { API, tg } from './state.js?v=20261009002';
+import { API, tg } from './state.js?v=20261017-010';
 
 export async function request(path, options = {}) {
   const headers = {

@@ -7,15 +7,13 @@ except ImportError:
 
 TRANSLATIONS = {
     "ru": {
-        # Общие сессии и ошибки
         "flood_msg": "❌ Слишком много запросов. Пожалуйста, подождите.",
         "session_expired": "❌ Сессия устарела. Начните заново.",
         "active_session_not_found": "Активной сессии не найдено.",
         "internal_error": "Произошла внутренняя ошибка при обработке команды.",
         "cat_session_expired": "Сессия устарела. Начните заново.",
         "generic_admin_error": "❌ Произошла системная ошибка. Детали записаны в серверные логи.",
-        
-        # Административные панели и команды
+
         "admin_required_msg": "⚠️ У вас нет прав администратора.",
         "superadmin_required_msg": "⚠️ Эта команда доступна только суперадминистраторам.",
         "usage_ban_unban": "❌ Использование: /ban или /unban <id или @username>",
@@ -58,10 +56,8 @@ TRANSLATIONS = {
         "admin_not_found": "❌ Пользователь <code>{user_id}</code> не найден в базе.",
         "admin_permissions_panel": "⚙️ <b>ПАНЕЛЬ УПРАВЛЕНИЯ JARVIS GEO-BOT</b>\n━━━━━━━━━━━━━━━━━━\n🛡 <b>ОСНОВНЫЕ КОМАНДЫ (ADMIN)</b>\n📊 /stats — Статистика\n⏱ /db_ping — Задержка БД\n👥 /active_users — Сессии за 24ч\n🚫 /ban /unban &lt;id&gt; — Управление баном\n🛠 /maintenance — Режим техработ\n🌍 /cached_regions — Группировка кэша\n⭐ /top_locations — Топ избранного\n🔍 /session_info &lt;id&gt; — Кэш Redis\n👤 /user_lookup &lt;id&gt; — Поиск профиля\n📜 /latest_history — Последние маршруты\n🖥 /bot_uptime — Время ноды\n🔔 /sys_alerts — Логи\n\n⚠️ <b>ОГРАНИЧЕННЫЕ (SUPERADMIN)</b>\n💾 /getdb — Бэкап PostgreSQL\n🧹 /clear_cache — Очистка OsmCache\n💣 /drop_database_data — Сброс данных\n🔥 /flush_redis — Очистка Redis\n📢 /force_broadcast &lt;text&gt; — Рассылка\n👑 /set_admin &lt;id&gt; — Назначить админа\n🪓 /rev_admin &lt;id&gt; — Снять админа",
 
-        # Группы и права
         "btn_toggle_single": "Одиночный режим",
 
-        # Достопримечательности и регионы
         "no_more_attractions": "Больше достопримечательностей в этой категории нет.",
         "select_category_prompt": "Выберите категорию для города {city}:",
         "load_places_loading": "Загрузка мест для города {city}...",
@@ -70,8 +66,7 @@ TRANSLATIONS = {
         "choose_city_empty": "В этой области пока нет доступных городов.",
         "attractions_list_title": "🏙️ *Достопримечательности города {city}* \\(Категория: {category}\\):\n\n",
         "cities_of_region": "Города области {region}:",
-        
-        # Голосование и маршруты
+
         "vote_withdrawn": "📥 Ваш голос отозван.",
         "vote_counted": "👍 Голос учтен!",
         "point_approved": "📌 Точка утверждена!",
@@ -84,15 +79,13 @@ TRANSLATIONS = {
         "generating_route": "Формирование маршрута...",
         "session_reset_success": "Сессия успешно сброшена. Используйте нижнее меню бота для старта.",
         "session_reset_menu_text": "Сессия сброшена. Начните заново с кнопки Поездки.",
-        
-        # Участники
+
         "manage_members_title": "👥 *Управление участниками*\n\nСписок текущих пользователей:\n",
         "owner_label": "*\\(Создатель\\)*",
         "enter_username_prompt": "📝 Отправьте никнейм пользователя в формате `@username`.",
         "member_removed": "👤 Участник успешно удален.",
         "member_not_found": "❌ Участник не найден в группе.",
-        
-        # Интерфейс кнопок (Клавиатуры)
+
         "favorite_btn": "❤️ Избранное",
         "in_route_btn": "✅ В маршруте",
         "add_btn": "➕ Добавить",
@@ -104,14 +97,12 @@ TRANSLATIONS = {
         "reset_session_btn": "Сбросить сессию",
         "remove_member_btn": "❌ Удалить {name}",
         "add_member_btn": "➕ Добавить по @username",
-        
-        # Кнопки нижнего Reply-меню
+
         "menu_trips": "Поездки",
         "menu_favorites": "Избранное",
         "menu_history": "История",
         "menu_reset": "Сбросить сессию",
-        
-        # Старт и личный кабинет
+
         "bot_started": "🚀 Бот запущен.",
         "FastAPI started": "Апи запущен",
         "bot_stopped": "🛑 Бот остановлен.",
@@ -121,10 +112,7 @@ TRANSLATIONS = {
         "favorites_title": "🌟 *Ваши избранные места*:\n\n",
         "history_empty": "📜 Ваша история запросов пуста.",
         "history_title": "📜 *История ваших запросов*:\n\n",
-        
-        # Меню Управления Группами
-        
-        # Пользовательские подсказки и кнопки
+
         "help_text": "JARVIS Travel Bot\n\nПоиск достопримечательностей и построение маршрутов.",
         "usage_weather": "Использование: /weather <город>",
         "all_category": "Все",
@@ -134,7 +122,6 @@ TRANSLATIONS = {
         "tag_label": "🏷️ Тег:",
         "address_label": "📍 Адрес:",
 
-        # --- РЕГИОНЫ И ГОРОДА (Для перевода ключей из config.py) ---
         "Минская область": "Минская область",
         "Брестская область": "Брестская область",
         "Витебская область": "Витебская область",
@@ -145,7 +132,7 @@ TRANSLATIONS = {
         "Брест": "Брест",
         "Гродно": "Гродно",
     },
-    
+
     "en": {
         "flood_msg": "❌ Too many requests. Please wait.",
         "session_expired": "❌ Session expired. Please start over.",
@@ -1296,17 +1283,14 @@ TRANSLATIONS = {
         "Гродно": "그로드노",
     },
 
-
         "he": {
-        # General sessions and errors
         "flood_msg": "❌ יותר מדי בקשות. נא להמתין.",
         "session_expired": "❌ תוקף ההפעלה פג. התחל מחדש.",
         "active_session_not_found": "לא נמצאה הפעלה פעילה.",
         "internal_error": "אירעה שגיאה פנימית בעת עיבוד הפקודה.",
         "cat_session_expired": "תוקף ההפעלה פג. התחל מחדש.",
         "generic_admin_error": "❌ אירעה שגיאת מערכת. פרטים נרשמו ביומני השרת.",
-        
-        # Admin panels and commands
+
         "admin_required_msg": "⚠️ אין לך הרשאות מנהל.",
         "superadmin_required_msg": "⚠️ פקודה זו זמינה למנהלי־על בלבד.",
         "usage_ban_unban": "❌ שימוש: /ban או /unban <מזהה או @שם_משתמש>",
@@ -1351,7 +1335,6 @@ TRANSLATIONS = {
 
                 "btn_toggle_single": "מצב יחיד",
 
-        # Attractions and regions
         "no_more_attractions": "אין אטרקציות נוספות בקטגוריה זו.",
         "select_category_prompt": "בחר קטגוריה לעיר {city}:",
         "load_places_loading": "טוען מקומות עבור {city}...",
@@ -1360,8 +1343,7 @@ TRANSLATIONS = {
         "choose_city_empty": "אין ערים זמינות באזור זה.",
         "attractions_list_title": "🏙️ *אטרקציות ב{city}* \\(קטגוריה: {category}\\):\n\n",
         "cities_of_region": "ערים באזור {region}:",
-        
-        # Voting and routes
+
         "vote_withdrawn": "📥 ההצבעה בוטלה.",
         "vote_counted": "👍 ההצבעה נספרה!",
         "point_approved": "📌 הנקודה אושרה!",
@@ -1374,15 +1356,13 @@ TRANSLATIONS = {
         "generating_route": "מייצר מסלול...",
         "session_reset_success": "ההפעלה אופסה. השתמש בתפריט התחתון כדי להתחיל.",
         "session_reset_menu_text": "ההפעלה אופסה. התחל מחדש דרך 'נסיעות'.",
-        
-        # Members
+
         "manage_members_title": "👥 *ניהול חברים*\n\nמשתמשים נוכחיים:\n",
         "owner_label": "*\\(יוצר\\)*",
         "enter_username_prompt": "📝 שלח שם משתמש בפורמט `@username`.",
         "member_removed": "👤 החבר הוסר.",
         "member_not_found": "❌ החבר לא נמצא.",
-        
-        # UI Buttons
+
         "favorite_btn": "❤️ מועדף",
         "in_route_btn": "✅ במסלול",
         "add_btn": "➕ הוסף",
@@ -1394,14 +1374,12 @@ TRANSLATIONS = {
         "reset_session_btn": "אפס הפעלה",
         "remove_member_btn": "❌ הסר {name}",
         "add_member_btn": "➕ הוסף לפי @username",
-        
-        # Bottom menu
+
         "menu_trips": "נסיעות",
         "menu_favorites": "מועדפים",
         "menu_history": "היסטוריה",
         "menu_reset": "אפס הפעלה",
-        
-        # Start & Cabinet
+
         "bot_started": "🚀 הבוט הופעל.",
         "bot_stopped": "🛑 הבוט הופסק.",
         "start_welcome": "👋 ברוך הבא! בחר פעולה מהמקלדת למטה:",
@@ -1409,9 +1387,7 @@ TRANSLATIONS = {
         "favorites_title": "🌟 *המקומות המועדפים שלך*:\n\n",
         "history_empty": "📜 היסטוריית הבקשות ריקה.",
         "history_title": "📜 *היסטוריית בקשות*:\n\n",
-        
-                
-        # Prompts
+
         "help_text": "JARVIS Travel Bot\n\nחפש אטרקציות ובנה מסלולים.",
         "usage_weather": "שימוש: /weather <עיר>",
         "all_category": "הכל",
@@ -1421,7 +1397,6 @@ TRANSLATIONS = {
         "tag_label": "🏷️ תג:",
         "address_label": "📍 כתובת:",
 
-        # --- REGIONS AND CITIES ---
         "Минская область": "מחוז מינסק",
         "Брестская область": "מחוז ברסט",
         "Витебская область": "מחוז ויטבסק",
@@ -1433,8 +1408,6 @@ TRANSLATIONS = {
         "Гродно": "גרודנו",
     },
 }
-
-
 
 def get_text(tag: str, **kwargs) -> str:
     lang = DEFAULT_LANGUAGE if DEFAULT_LANGUAGE in TRANSLATIONS else "ru"

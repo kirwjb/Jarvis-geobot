@@ -23,10 +23,6 @@ from src.middleware.security import SecurityMiddleware
 from src.handlers.admin import _get_caller_role, register_admin_handlers
 from src.utils.redis_keys import RedisKeys
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 1. THREE-TIER ROLE HIERARCHY & RANK COMPARISON
-# ─────────────────────────────────────────────────────────────────────────────
 def test_role_hierarchy_ordering():
     assert Role.USER < Role.ADMIN < Role.SUPERADMIN
     assert Role.SUPERADMIN > Role.ADMIN > Role.USER
@@ -35,7 +31,6 @@ def test_role_hierarchy_ordering():
     assert Role.USER == Role.USER
     assert Role.ADMIN == Role.ADMIN
     assert Role.SUPERADMIN == Role.SUPERADMIN
-
 
 def test_is_superadmin_configuration(monkeypatch):
     monkeypatch.setattr("src.services.rbac.SUPERADMINS", [111111, 222222])
@@ -47,82 +42,58 @@ def test_is_superadmin_configuration(monkeypatch):
     assert is_superadmin(None) is False
     assert is_superadmin("invalid") is False
 
-
 def test_resolve_user_role(monkeypatch):
     monkeypatch.setattr("src.services.rbac.SUPERADMINS", [777777])
     monkeypatch.setattr("src.services.rbac.BOT_OWNER_ID", 777777)
 
-    # Superadmin by ID override (immutable)
     assert resolve_user_role(777777, db_role="USER", is_admin=False) == Role.SUPERADMIN
 
-    # Admin promoted in DB
     assert resolve_user_role(123456, db_role="ADMIN", is_admin=True) == Role.ADMIN
     assert resolve_user_role(123456, db_role="USER", is_admin=True) == Role.ADMIN
 
-    # Standard User
     assert resolve_user_role(123456, db_role="USER", is_admin=False) == Role.USER
     assert resolve_user_role(123456, db_role=None, is_admin=False) == Role.USER
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 2. PERMISSION BOUNDARIES & TARGET MATRIX
-# ─────────────────────────────────────────────────────────────────────────────
 def test_role_capability_checks():
-    # USER capabilities
     assert can_moderate(Role.USER) is False
     assert can_govern(Role.USER) is False
     assert can_manage_cli(Role.USER) is False
     assert can_promote_or_demote(Role.USER) is False
 
-    # ADMIN capabilities
     assert can_moderate(Role.ADMIN) is True
     assert can_govern(Role.ADMIN) is False
     assert can_manage_cli(Role.ADMIN) is False
     assert can_promote_or_demote(Role.ADMIN) is False
 
-    # SUPERADMIN capabilities
     assert can_moderate(Role.SUPERADMIN) is True
     assert can_govern(Role.SUPERADMIN) is True
     assert can_manage_cli(Role.SUPERADMIN) is True
     assert can_promote_or_demote(Role.SUPERADMIN) is True
 
-
 def test_target_hierarchy_matrix():
-    # Superadmin target rules:
-    # Superadmin can target ADMIN and USER, but nobody can target SUPERADMIN
     assert can_target_user(Role.SUPERADMIN, Role.USER) is True
     assert can_target_user(Role.SUPERADMIN, Role.ADMIN) is True
     assert can_target_user(Role.SUPERADMIN, Role.SUPERADMIN) is False
 
-    # Admin target rules:
-    # Admin can only target standard USER. Cannot target fellow ADMIN or SUPERADMIN.
     assert can_target_user(Role.ADMIN, Role.USER) is True
     assert can_target_user(Role.ADMIN, Role.ADMIN) is False
     assert can_target_user(Role.ADMIN, Role.SUPERADMIN) is False
 
-    # User cannot target anyone
     assert can_target_user(Role.USER, Role.USER) is False
     assert can_target_user(Role.USER, Role.ADMIN) is False
     assert can_target_user(Role.USER, Role.SUPERADMIN) is False
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 3. CLI ACCESS RESTRICTION (SUPERADMIN EXCLUSIVITY)
-# ─────────────────────────────────────────────────────────────────────────────
 def test_verify_cli_access_allows_superadmin(monkeypatch):
     monkeypatch.setattr("src.services.rbac.SUPERADMINS", [888888])
     monkeypatch.setattr("src.services.rbac.BOT_OWNER_ID", 888888)
     monkeypatch.setattr("src.cli.admin.SUPERADMINS", [888888])
     monkeypatch.setattr("src.cli.admin.BOT_OWNER_ID", 888888)
 
-    # Machine owner fallback
     active_id = verify_cli_access(caller_id=None)
     assert active_id == 888888
 
-    # Explicit superadmin caller
     active_id = verify_cli_access(caller_id=888888)
     assert active_id == 888888
-
 
 def test_verify_cli_access_rejects_non_superadmin(monkeypatch):
     monkeypatch.setattr("src.services.rbac.SUPERADMINS", [888888])
@@ -130,11 +101,9 @@ def test_verify_cli_access_rejects_non_superadmin(monkeypatch):
     monkeypatch.setattr("src.cli.admin.SUPERADMINS", [888888])
     monkeypatch.setattr("src.cli.admin.BOT_OWNER_ID", 888888)
 
-    # Non-superadmin user must raise SystemExit(1)
     with pytest.raises(SystemExit) as exc:
         verify_cli_access(caller_id=123456)
     assert exc.value.code == 1
-
 
 def test_verify_cli_access_rejects_when_no_superadmin_configured(monkeypatch):
     monkeypatch.setattr("src.services.rbac.SUPERADMINS", [])
@@ -146,10 +115,6 @@ def test_verify_cli_access_rejects_when_no_superadmin_configured(monkeypatch):
         verify_cli_access(caller_id=None)
     assert exc.value.code == 1
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 4. SATIRICAL BOURGEOIS CALLS & EASTER EGGS
-# ─────────────────────────────────────────────────────────────────────────────
 @pytest.mark.asyncio
 async def test_guillotine_protects_superadmin(monkeypatch, capsys):
     monkeypatch.setattr("src.services.rbac.SUPERADMINS", [999001])
@@ -174,7 +139,6 @@ async def test_guillotine_protects_superadmin(monkeypatch, capsys):
     captured = capsys.readouterr().out
     assert "INCIDENT DE HAUTE TRAHISON" in captured
     assert "blade fractures on sovereign steel" in captured
-
 
 @pytest.mark.asyncio
 async def test_salon_renders_luxury_dossier(monkeypatch, capsys):
@@ -223,27 +187,21 @@ async def test_salon_renders_luxury_dossier(monkeypatch, capsys):
     assert "A vintage 1982 telemetry dossier" in captured
     assert "Cave de PostgreSQL" in captured
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 5. SECURITY MIDDLEWARE ENFORCEMENT (RBAC, MAINTENANCE, MUTE, BAN)
-# ─────────────────────────────────────────────────────────────────────────────
 @pytest.mark.asyncio
 async def test_security_middleware_superadmin_bypasses_all(monkeypatch):
     monkeypatch.setattr("src.middleware.security.SUPERADMINS", [999001])
     monkeypatch.setattr("src.services.rbac.SUPERADMINS", [999001])
 
     mock_redis = AsyncMock()
-    mock_redis.get.return_value = "1"  # maintenance active
+    mock_redis.get.return_value = "1"
     mw = SecurityMiddleware(mock_redis)
 
     mock_msg = MagicMock()
     mock_msg.from_user.id = 999001
     mock_msg.callback_query = None
 
-    # Superadmin must return None (allowed through without any cancel)
     res = await mw.pre_process(mock_msg, {})
     assert res is None
-
 
 @pytest.mark.asyncio
 async def test_security_middleware_blocks_normal_user_on_maintenance(monkeypatch):
@@ -272,7 +230,6 @@ async def test_security_middleware_blocks_normal_user_on_maintenance(monkeypatch
     res = await mw.pre_process(mock_msg, {})
     assert res == "cancel"
 
-
 @pytest.mark.asyncio
 async def test_security_middleware_blocks_muted_user(monkeypatch):
     monkeypatch.setattr("src.middleware.security.SUPERADMINS", [999001])
@@ -298,10 +255,6 @@ async def test_security_middleware_blocks_muted_user(monkeypatch):
     assert res == {"cancel": True}
     mock_msg.bot.send_message.assert_called_once()
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 6. IN-CHAT TELEGRAM BOT MODERATION COMMAND HANDLERS
-# ─────────────────────────────────────────────────────────────────────────────
 @pytest.mark.asyncio
 async def test_admin_handlers_moderation_and_governance(monkeypatch):
     monkeypatch.setattr("src.services.rbac.SUPERADMINS", [999001])
@@ -324,7 +277,6 @@ async def test_admin_handlers_moderation_and_governance(monkeypatch):
     mock_redis = AsyncMock()
     await register_admin_handlers(mock_bot, redis_client=mock_redis)
 
-    # 1. Non-admin user tries to execute /ban -> rejected
     async def mock_get_caller_user(uid):
         return Role.USER
     monkeypatch.setattr("src.handlers.admin._get_caller_role", mock_get_caller_user)
@@ -337,7 +289,6 @@ async def test_admin_handlers_moderation_and_governance(monkeypatch):
     await ban_func(msg)
     assert "У вас нет прав администратора" in mock_bot.reply_to.call_args[0][1]
 
-    # 2. Admin tries to ban Superadmin -> rejected (immutable)
     async def mock_get_caller_admin(uid):
         return Role.ADMIN
     monkeypatch.setattr("src.handlers.admin._get_caller_role", mock_get_caller_admin)
@@ -355,22 +306,20 @@ async def test_admin_handlers_moderation_and_governance(monkeypatch):
     monkeypatch.setattr("src.handlers.admin.AsyncSessionLocal", lambda: FakeSessionSA())
 
     msg_sa = MagicMock()
-    msg_sa.from_user.id = 888  # Admin
+    msg_sa.from_user.id = 888
     msg_sa.text = "/ban 999001"
 
     await ban_func(msg_sa)
     assert "Суперадминистратор неприкосновенен" in mock_bot.reply_to.call_args[0][1]
 
-    # 3. Admin tries to execute /promote (Superadmin only) -> rejected
     promote_func = registered_handlers["promote"]
     msg_promote = MagicMock()
-    msg_promote.from_user.id = 888  # Admin
+    msg_promote.from_user.id = 888
     msg_promote.text = "/promote 456"
 
     await promote_func(msg_promote)
     assert "SUPERADMIN" in mock_bot.reply_to.call_args[0][1]
 
-    # 4. Superadmin toggles maintenance -> accepted
     async def mock_get_caller_sa(uid):
         return Role.SUPERADMIN
     monkeypatch.setattr("src.handlers.admin._get_caller_role", mock_get_caller_sa)
@@ -383,3 +332,109 @@ async def test_admin_handlers_moderation_and_governance(monkeypatch):
     await maint_func(msg_maint)
     mock_redis.set.assert_called_with(RedisKeys.maintenance(), "1")
     assert "ВКЛЮЧЕН" in mock_bot.reply_to.call_args[0][1]
+
+@pytest.mark.asyncio
+async def test_security_middleware_handles_callback_query_flood(monkeypatch):
+    from telebot.types import CallbackQuery
+    from src.utils.languages import get_text
+    monkeypatch.setattr("src.middleware.security.SUPERADMINS", [999001])
+    monkeypatch.setattr("src.services.rbac.SUPERADMINS", [999001])
+
+    mock_redis = AsyncMock()
+    mock_redis.get.return_value = "0"
+    mw = SecurityMiddleware(mock_redis)
+    mw.limiter.is_allowed = AsyncMock(return_value=False)
+
+    cq = CallbackQuery.de_json({
+        "id": "cb_query_123",
+        "from": {"id": 123456, "is_bot": False, "first_name": "Test"},
+        "chat_instance": "1",
+        "data": "test_action",
+    })
+    cq.bot = MagicMock()
+    cq.bot.answer_callback_query = AsyncMock()
+
+    res = await mw.pre_process(cq, {})
+    assert res == {"cancel": True}
+    cq.bot.answer_callback_query.assert_called_once_with(
+        "cb_query_123",
+        text=get_text("flood_msg"),
+        show_alert=True,
+    )
+
+def test_utils_green_ansi_escape():
+    from src.utils.utils import GREEN
+    assert GREEN == "\033[92m"
+
+@pytest.mark.asyncio
+async def test_security_middleware_handles_message_flood_rejection(monkeypatch):
+    from src.utils.languages import get_text
+    monkeypatch.setattr("src.middleware.security.SUPERADMINS", [999001])
+    monkeypatch.setattr("src.services.rbac.SUPERADMINS", [999001])
+
+    mock_redis = AsyncMock()
+    mock_redis.get.return_value = "0"
+    mw = SecurityMiddleware(mock_redis)
+    mw.limiter.is_allowed = AsyncMock(return_value=False)
+
+    msg = MagicMock()
+    msg.from_user.id = 123456
+    msg.chat.id = 987654
+    msg.bot.send_message = AsyncMock()
+
+    res = await mw.pre_process(msg, {})
+    assert res == {"cancel": True}
+    msg.bot.send_message.assert_called_once_with(
+        987654,
+        get_text("flood_msg"),
+    )
+
+@pytest.mark.asyncio
+async def test_security_middleware_handles_callback_query_maintenance(monkeypatch):
+    from telebot.types import CallbackQuery
+    from src.utils.languages import get_text
+    monkeypatch.setattr("src.middleware.security.SUPERADMINS", [999001])
+    monkeypatch.setattr("src.services.rbac.SUPERADMINS", [999001])
+
+    mock_redis = AsyncMock()
+    mock_redis.get.side_effect = lambda key: "1" if key == RedisKeys.maintenance() else "user"
+    mw = SecurityMiddleware(mock_redis)
+
+    class FakeSession:
+        async def __aenter__(self): return self
+        async def __aexit__(self, *args): pass
+        async def execute(self, *args, **kwargs):
+            mock = MagicMock()
+            mock.first.return_value = ("USER", False)
+            return mock
+
+    monkeypatch.setattr("src.middleware.security.AsyncSessionLocal", lambda: FakeSession())
+
+    cq = CallbackQuery.de_json({
+        "id": "cb_maint_123",
+        "from": {"id": 123456, "is_bot": False, "first_name": "Test"},
+        "chat_instance": "1",
+        "data": "test_action",
+    })
+    cq.bot = MagicMock()
+    cq.bot.answer_callback_query = AsyncMock()
+
+    res = await mw.pre_process(cq, {})
+    assert res == {"cancel": True}
+    cq.bot.answer_callback_query.assert_called_once_with(
+        "cb_maint_123",
+        text=get_text("maintenance_mode_msg"),
+        show_alert=True,
+    )
+
+def test_cancel_payload_telebot_and_dict_compatibility():
+    from telebot.handler_backends import CancelUpdate
+    from src.middleware.security import CancelPayload
+
+    payload = CancelPayload()
+    assert isinstance(payload, CancelUpdate)
+    assert isinstance(payload, dict)
+    assert payload == {"cancel": True}
+    assert payload == "cancel"
+    assert payload.get("cancel") is True
+

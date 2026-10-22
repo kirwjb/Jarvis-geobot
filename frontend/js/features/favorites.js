@@ -1,8 +1,9 @@
-import { state, persist, telegramUserId } from '../core/state.js?v=20261009002';
-import { request } from '../core/api.js?v=20261009002';
-import { $, esc, toast, haptic } from '../ui/helpers.js?v=20261009002';
-import { t } from '../ui/language.js?v=20261009002';
-import { poiCardMarkup } from './places/view.js?v=20261009002';
+import { state, persist, telegramUserId } from '../core/state.js?v=20261017-010';
+import { request } from '../core/api.js?v=20261017-010';
+import { $, esc, toast, haptic } from '../ui/helpers.js?v=20261017-010';
+import { t } from '../ui/language.js?v=20261017-010';
+import { poiCardMarkup } from './places/view.js?v=20261017-010';
+import { ICONS } from '../ui/icons.js?v=20261017-010';
 
 export const favState = {
   page: 0,
@@ -13,7 +14,6 @@ export const favState = {
   loading: false,
 };
 
-/** Render page pagination controls for favorites. */
 export function renderFavPagination() {
   const pagination = $('#fav-pagination');
   if (!pagination) return;
@@ -22,13 +22,12 @@ export function renderFavPagination() {
     return;
   }
   pagination.innerHTML = `
-    <button class="poi-page-btn" type="button" data-action="fav-page-prev" data-page="${favState.page - 1}" ${favState.page === 0 || favState.loading ? 'disabled' : ''}>←</button>
+    <button class="poi-page-btn" type="button" data-action="fav-page-prev" data-page="${favState.page - 1}" ${favState.page === 0 || favState.loading ? 'disabled' : ''}>${ICONS.chevronLeft}</button>
     <span class="poi-page-label">${esc(t('page'))} ${favState.page + 1} / ${Math.max(1, favState.pages)}</span>
-    <button class="poi-page-btn" type="button" data-action="fav-page-next" data-page="${favState.page + 1}" ${!favState.hasNext || favState.loading ? 'disabled' : ''}>→</button>
+    <button class="poi-page-btn" type="button" data-action="fav-page-next" data-page="${favState.page + 1}" ${!favState.hasNext || favState.loading ? 'disabled' : ''}>${ICONS.chevronRight}</button>
   `;
 }
 
-/** Load the authenticated user's favorites with page-based pagination and render them. */
 export async function loadFavoritesScreen(page = 0) {
   const box = $('#favorites-list');
   const pagination = $('#fav-pagination');
@@ -80,7 +79,6 @@ export async function loadFavoritesScreen(page = 0) {
   }
 }
 
-/** Toggle favorite state for a place with backend sync and event dispatch. */
 export async function toggleFavorite(id) {
   if (!telegramUserId()) return toast(t('tg_only'));
   const pid = String(id);
@@ -95,14 +93,11 @@ export async function toggleFavorite(id) {
   }
 }
 
-/** Load all favorite IDs for the current user to mark hearts across the application. */
 export async function loadFavorites() {
   if (!telegramUserId()) return;
   try {
     const data = await request('/favorites/me');
     state.favs = new Set((data?.favorites || []).map((item) => String(item.place_id)));
     persist();
-  } catch (error) {
-    console.warn('favorites', error);
-  }
+  } catch (_) {}
 }
