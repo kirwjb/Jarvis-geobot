@@ -19,7 +19,7 @@
   <img src="https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/FastAPI-0.115+-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI">
   <img src="https://img.shields.io/badge/Tests-108%20Passed-success?style=for-the-badge&logo=pytest" alt="Tests 108 Passed">
-  <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License MIT">
+  <img src="https://img.shields.io/badge/License-AGPL3.0-green?style=for-the-badge" alt="License AGPL3.0">
 </p>
 
 ---
